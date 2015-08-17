@@ -42,9 +42,6 @@ def parse_apningstid(apningstid):
 def create_osmtags(udir_tags):
     # See http://data.udir.no/baf/json-beskrivelse.html for a full list of expected keys
 
-    osm_tags = dict()
-    osm_tags['name'] = udir_tags['navn']
-
     lat, lon = udir_tags['koordinatLatLng']
     attribs = dict(lat=lat, lon=lon)
     # checks:
@@ -53,12 +50,13 @@ def create_osmtags(udir_tags):
     if not(udir_tags['erAktiv']):
         raise ValueError('FIXME: erAktiv is False, what-to-do!')
 
+    opening_hours = ''
     o_fra, o_til = parse_apningstid(udir_tags['apningstidFra']), parse_apningstid(udir_tags['apningstidTil'])
     if o_fra is not None and o_til is not None:
         # fixme: should we always add "Mo-Fr" (Monday-Friday) and PH (public holiday)?
         # opening_hours = 'Mo-Fr {0}-{1}; PH off'.format(o_fra, o_til)
         # service_hours better?
-        osm_tags['opening_hours'] = '{0}-{1}'.format(o_fra, o_til)    
+        opening_hours = '{0}-{1}'.format(o_fra, o_til)    
     # opening_hours combined with udir_tags['type'] == 'åpen' could be moderately useful on the go.
 
     # Consider parsing udir_tags['besoksAdresse']['adresselinje'] into addr:housenumber, addr:street
@@ -73,31 +71,44 @@ def create_osmtags(udir_tags):
     # api:  http://data.brreg.no/enhetsregisteret/enhet/{orgnr}.{format}
     # or?:  http://data.brreg.no/enhetsregisteret/underenhet/987861649.json
 
-    if udir_tags['eierform'] == 'Privat':
-        osm_tags['operator:type'] = 'private'
-    elif udir_tags['eierform'] == 'Kommunal':
-        osm_tags['operator:type'] = 'public'
-    else:
-        logger.warning('Unknown "eierform=%s"', udir_tags['eierform'])
-    
-    age = udir_tags['alder']
-    min_age, max_age = re.split('[^\d]+', "1 - 5")
-    # ensure ints (fixme: support float?):
-    osm_tags['min_age'], osm_tags['max_age'] = int(min_age), int(max_age)
+    # Should we add nsrId?
 
+    operator_type = ''
+    if udir_tags['eierform'] == 'Privat':
+        operator_type = 'private'
+    elif udir_tags['eierform'] == 'Kommunal':
+        operator_type = 'public'
+    else:
+        logger.warning('Unknown "eierform=%s", fixme: consider using "erPrivatBarnehage=%s"',
+                       udir_tags['eierform'], udir_tags['erPrivatBarnehage'])
+
+    min_age, max_age = '', ''
+    age = udir_tags['alder']
     try:
+        min_age, max_age = re.split('[^\d.]+', age)
+        min_age, max_age = int(min_age), int(max_age) # ensure ints (fixme: support float?):
+    except ValueError as e:
+        logger.warning('unable to parse "%s" into min and max age, %s', age, e)
+
+    tags_contact = dict()
+    if udir_tags['kontaktinformasjon'] is not None:
         tags_contact = {'contact:website': udir_tags['kontaktinformasjon']['url'],
                         'contact:phone': udir_tags['kontaktinformasjon']['telefon'],
                         'contact:email': udir_tags['kontaktinformasjon']['epost']}
-        osm_tags.update(tags_contact)
-    except Exception as e:
-        logger.warning('Error when parsing kontaktinformasjon. %s', e)
-    try:
-        osm_tags['capacity'] = int(udir_tags['indikatorDataBarnehage']['antallBarn'])
-    except Exception as e:
-        logger.warning('Error when parsing antallBarn. %s', e)
+    capacity = ''
+    if udir_tags['indikatorDataBarnehage'] is not None:
+        antallBarn = udir_tags['indikatorDataBarnehage']['antallBarn']
+        capacity = int(antallBarn) # ensure int
 
-    # cleanup
+    osm_tags = {'name': udir_tags['navn'],
+                'opening_hours': opening_hours,
+                'operator_type': operator_type,
+                'min_age': min_age,
+                'max_age': max_age,
+                'capacity': capacity}
+    osm_tags.update(tags_contact)
+    
+    # cleanup, remove empty vlues and convert to string.
     remove_empty_values(osm_tags)
     values_to_str(osm_tags)
 
@@ -108,9 +119,10 @@ def create_osmtags(udir_tags):
 
 def main(lst, output_filename, cache_dir):
     osm = osmapis.OSM()
-    for nbr_id in lst:
+    for nbr_id in set(lst):
         try:
             udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
+            if udir_tags == {}: continue
             node = create_osmtags(udir_tags)
             osm.add(node)
         except:
@@ -118,7 +130,6 @@ def main(lst, output_filename, cache_dir):
     osm.save(output_filename)
     
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
     import argparse
     parser = argparse.ArgumentParser(description='Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
     parser.add_argument('nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
@@ -126,6 +137,16 @@ if __name__ == '__main__':
                         help='Specify output filename, defaults to "barnehagefakta.osm"')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
-    args = parser.parse_args()
+    # http://stackoverflow.com/a/20663028
+    parser.add_argument('-d', '--debug', help="Print lots of debugging statements",
+                        action="store_const", dest="loglevel", const=logging.DEBUG,
+                        default=logging.DEBUG)
+    parser.add_argument('-v', '--verbose', help="Be verbose",
+                        action="store_const", dest="loglevel", const=logging.INFO)
+    parser.add_argument('-q', '--quiet', help="Suppress non-warning messages.",
+                        action="store_const", dest="loglevel", const=logging.WARNING)
     
+    args = parser.parse_args()
+
+    logging.basicConfig(level=args.loglevel)    
     main(args.nbr_id, args.output_filename, args.cache_dir)
