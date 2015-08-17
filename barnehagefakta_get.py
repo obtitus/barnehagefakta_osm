@@ -2,6 +2,8 @@
 import os
 import json
 import time
+import pprint
+pretty_printer = pprint.PrettyPrinter()
 import logging
 logger = logging.getLogger('barnehagefakta.get')
 # Non-standard imports
@@ -48,7 +50,10 @@ def barnehagefakta_get(nbr_id, *args, **kwargs):
     """Returns dictionary with data for the given nbr_id. 
     Additonal arguments are passed to barnehagefakta_get_json"""
     j = barnehagefakta_get_json(nbr_id, *args, **kwargs)
-    return json.loads(j)
+    dct = json.loads(j)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug('barnehagefakta_get(%s) -> %s', nbr_id, pretty_printer.pformat(dct))
+    return dct
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
