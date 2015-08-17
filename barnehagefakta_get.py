@@ -29,10 +29,10 @@ def fileAge(filename):
 #
 # Main
 # 
-def barnehagefakta_get_json(nbr_id, old_age_days=30):
-    """Returns json string for the given nbr_id, caches result to file. 
+def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data'):
+    """Returns json string for the given nbr_id, caches result to file in directory cache_dir. 
     If the cached result is older than old_age_days a new version is fetched."""
-    filename = 'data/{0}.json'.format(nbr_id) # fixme, non-absolute path
+    filename = os.path.join(cache_dir, str(nbr_id) + '.json')
     if os.path.exists(filename):
         age = fileAge(filename)
         if age < old_age_days:

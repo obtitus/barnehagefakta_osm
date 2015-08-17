@@ -7,8 +7,6 @@ import osmapis
 # This project:
 from barnehagefakta_get import barnehagefakta_get
 
-osmobj = osmapis.OSM()
-
 def remove_empty_values(dct):
     """Remove all dictionary items where the value is '' or None."""
     for key in dct.keys():
@@ -71,17 +69,23 @@ def create_osmtags(udir_tags):
     logger.info('Created node %s', node)
     return node
 
-def main(lst):
+def main(lst, output_filename, cache_dir):
     osm = osmapis.OSM()
     for nbr_id in lst:
-        udir_tags = barnehagefakta_get(nbr_id)
+        udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
         node = create_osmtags(udir_tags)
         osm.add(node)
-    osm.save('barnehagefakta.osm')
+    osm.save(output_filename)
     
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    # fixme: print usage
-    import sys
-    nbr_ids = sys.argv[1:]
-    main(nbr_ids)
+    import argparse
+    parser = argparse.ArgumentParser(description='Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
+    parser.add_argument('nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
+    parser.add_argument('--output_filename', default='barnehagefakta.osm',
+                        help='Specify output filename, defaults to "barnehagefakta.osm"')
+    parser.add_argument('--cache_dir', default='data',
+                        help='Specify directory for cached .json files, defaults to data/')
+    args = parser.parse_args()
+    
+    main(args.nbr_id, args.output_filename, args.cache_dir)
