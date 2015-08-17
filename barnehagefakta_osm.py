@@ -1,5 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf8
+
 # Standard python imports
 import re
+import datetime
 import logging
 logger = logging.getLogger('barnehagefakta')
 # Non standard
@@ -39,11 +43,28 @@ def create_osmtags(udir_tags):
     if not(udir_tags['erAktiv']):
         print 'FIXME: erAktiv is False, what-to-do!'
 
+    # Consider using orgnr for finding operator name
+    """ 
     # Note: No operator is given for 'privat' barnehage        
     operator = ''
     if not(udir_tags['erPrivatBarnehage']):
         operator = udir_tags['kommune']['kommunenavn'] + ' ' + 'kommune' # can I always add this?
-
+    """
+    """
+    o_fra, o_til = udir_tags['apningstidFra'], udir_tags['apningstidTil']
+    # ensure valid (fixme, function):
+    hour, minute = o_fra.split(':')
+    datetime.time(hour=int(hour), minute=int(minute))
+    hour, minute = o_til.split(':')
+    datetime.time(hour=int(hour), minute=int(minute))
+    # fixme: should we always add "Mo-Fr" (Monday-Friday)?
+    opening_hours = '{0}-{1}'.format(o_fra, o_til)
+    """
+    # opening_hours combined with udir_tags['type'] == 'åpen' could be moderately useful
+    # Consider parsing udir_tags['besoksAdresse']['adresselinje'] into addr:housenumber, addr:street
+    # addr_postcode = udir_tags['besoksAdresse']['postnr']
+    # addr_city = udir_tags['besoksAdresse']['poststed']    
+    
     age = udir_tags['alder']
     min_age, max_age = re.split('[^\d]+', "1 - 5")
     # ensure ints:
@@ -55,10 +76,11 @@ def create_osmtags(udir_tags):
             'contact:phone': udir_tags['kontaktinformasjon']['telefon'],
             'contact:email': udir_tags['kontaktinformasjon']['epost'],
             'capacity': udir_tags['indikatorDataBarnehage']['antallBarn'],
-            'fee': udir_tags['kostpenger'] != 0,
-            'operator':operator,
+#            'fee': udir_tags['kostpenger'] != 0, # guess this is not entirely correct?
+#            'operator':operator,
             'min_age':min_age,
             'max_age':max_age}
+#            'opening_hours':opening_hours}
 
     # cleanup
     remove_empty_values(tags)
