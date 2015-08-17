@@ -38,10 +38,9 @@ def create_osmtags(udir_tags):
     attribs = dict(lat=lat, lon=lon)
     # checks:
     if not(udir_tags['erBarnehage']):
-        print 'Error: data says this is not a barnehage erBarnehage=%s' % udir_tags['erBarnehage']
-        return ;
+        raise ValueError('Error: data says this is not a barnehage erBarnehage=%s' % udir_tags['erBarnehage'])
     if not(udir_tags['erAktiv']):
-        print 'FIXME: erAktiv is False, what-to-do!'
+        raise ValueError('FIXME: erAktiv is False, what-to-do!')
 
     o_fra, o_til = udir_tags['apningstidFra'], udir_tags['apningstidTil']
     # ensure valid (fixme, function):
@@ -50,20 +49,29 @@ def create_osmtags(udir_tags):
     hour, minute = o_til.split(':')
     datetime.time(hour=int(hour), minute=int(minute))
     # fixme: should we always add "Mo-Fr" (Monday-Friday) and PH (public holiday)?
+    # opening_hours = 'Mo-Fr {0}-{1}; PH off'.format(o_fra, o_til)
+    opening_hours = '{0}-{1}'.format(o_fra, o_til)    
     # opening_hours combined with udir_tags['type'] == 'åpen' could be moderately useful on the go.
-    opening_hours = 'Mo-Fr {0}-{1}; PH off'.format(o_fra, o_til)
 
     # Consider parsing udir_tags['besoksAdresse']['adresselinje'] into addr:housenumber, addr:street
     # this could help when merging the data, since lat/lon is often incorrect.
     # addr_postcode = udir_tags['besoksAdresse']['postnr']
     # addr_city = udir_tags['besoksAdresse']['poststed']
 
+    #'fee': udir_tags['kostpenger'] != 0, # needs to be combined with 'Pris for opphold', which is not present in the dataset
+    
     # consider parsing udir_tags[u'orgnr'] to get the 'operator',
     # entire orgnr dataset can be found at http://data.brreg.no/oppslag/enhetsregisteret/enheter.xhtml
     # api:  http://data.brreg.no/enhetsregisteret/enhet/{orgnr}.{format}
     # or?:  http://data.brreg.no/enhetsregisteret/underenhet/987861649.json
 
-    #'fee': udir_tags['kostpenger'] != 0, # needs to be combined with 'Pris for opphold', which is not present in the dataset    
+    operator_type = ''
+    if udir_tags['eierform'] == 'Privat':
+        operator_type = 'private'
+    elif udir_tags['eierform'] == 'Kommunal':
+        operator_type = 'public'
+    else:
+        logger.warning('Unknown "eierform=%s"', udir_tags['eierform'])
     
     age = udir_tags['alder']
     min_age, max_age = re.split('[^\d]+', "1 - 5")
@@ -92,9 +100,12 @@ def create_osmtags(udir_tags):
 def main(lst, output_filename, cache_dir):
     osm = osmapis.OSM()
     for nbr_id in lst:
-        udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
-        node = create_osmtags(udir_tags)
-        osm.add(node)
+        try:
+            udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
+            node = create_osmtags(udir_tags)
+            osm.add(node)
+        except:
+            logger.exception('Un-handled exception for nbr_id = %s', nbr_id)
     osm.save(output_filename)
     
 if __name__ == '__main__':
