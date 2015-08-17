@@ -58,7 +58,10 @@ def create_osmtags(udir_tags):
     # addr_postcode = udir_tags['besoksAdresse']['postnr']
     # addr_city = udir_tags['besoksAdresse']['poststed']
 
-    # consider parsing udir_tags[u'orgnr'] to get the 'operator', orgnr dataset can be found at http://data.brreg.no/oppslag/enhetsregisteret/enheter.xhtml
+    # consider parsing udir_tags[u'orgnr'] to get the 'operator',
+    # entire orgnr dataset can be found at http://data.brreg.no/oppslag/enhetsregisteret/enheter.xhtml
+    # api:  http://data.brreg.no/enhetsregisteret/enhet/{orgnr}.{format}
+    # or?:  http://data.brreg.no/enhetsregisteret/underenhet/987861649.json
 
     #'fee': udir_tags['kostpenger'] != 0, # needs to be combined with 'Pris for opphold', which is not present in the dataset    
     
