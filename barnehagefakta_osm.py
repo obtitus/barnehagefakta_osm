@@ -86,6 +86,7 @@ def create_osmtags(udir_tags):
             'capacity': udir_tags['indikatorDataBarnehage']['antallBarn'],
             'min_age':min_age,
             'max_age':max_age,
+            'operator:type': operator_type,
             'opening_hours':opening_hours}
 
     # cleanup
