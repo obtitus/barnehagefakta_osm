@@ -72,6 +72,7 @@ def create_osmtags(udir_tags):
     # or?:  http://data.brreg.no/enhetsregisteret/underenhet/987861649.json
 
     # Should we add nsrId?
+    # what about a source tag?
 
     operator_type = ''
     if udir_tags['eierform'] == 'Privat':
@@ -102,7 +103,7 @@ def create_osmtags(udir_tags):
 
     osm_tags = {'name': udir_tags['navn'],
                 'opening_hours': opening_hours,
-                'operator_type': operator_type,
+                'operator:type': operator_type,
                 'min_age': min_age,
                 'max_age': max_age,
                 'capacity': capacity}

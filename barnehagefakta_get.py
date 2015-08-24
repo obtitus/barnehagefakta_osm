@@ -1,7 +1,6 @@
 # Standard python imports
 import os
 import json
-import time
 import pprint
 pretty_printer = pprint.PrettyPrinter()
 import logging
@@ -9,26 +8,8 @@ logger = logging.getLogger('barnehagefakta.get')
 # Non-standard imports
 import requests
 request_session = requests.session()
-
-# Utility file functions:
-def read_file(filename):
-    with open(filename, 'r') as f:
-        return f.read()
-def write_file(filename, content):
-    """Write content to filename, tries to create dirname if the folder does not exist."""
-    dirname = os.path.dirname(filename)
-    if not(os.path.exists(dirname)):
-        os.mkdir(dirname)
-    
-    with open(filename, 'w') as f:
-        return f.write(content)
-
-def fileAge(filename):
-    fileChanged = os.path.getmtime(filename)
-    now = time.time()
-    age = (now - fileChanged)/(60*60*24) # age of file in days
-    return age
-
+# This project
+import file_util
 #
 # Main
 # 
@@ -36,10 +17,9 @@ def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data'):
     """Returns json string for the given nbr_id, caches result to file in directory cache_dir. 
     If the cached result is older than old_age_days a new version is fetched."""
     filename = os.path.join(cache_dir, str(nbr_id) + '.json')
-    if os.path.exists(filename):
-        age = fileAge(filename)
-        if age < old_age_days:
-            return read_file(filename)
+    cached = file_util.cached_file(filename, old_age_days)
+    if cached is not None:
+        return cached
     # else, else:
 
     url = 'http://barnehagefakta.no/api/barnehage/{0}'.format(nbr_id)
@@ -57,7 +37,7 @@ def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data'):
         ret = '404'
         
     if ret is not None:
-        write_file(filename, ret)
+        file_util.write_file(filename, ret)
     return ret
 
 def barnehagefakta_get(nbr_id, *args, **kwargs):
