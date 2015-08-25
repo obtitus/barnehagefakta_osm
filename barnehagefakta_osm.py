@@ -172,8 +172,8 @@ if __name__ == '__main__':
     parser.add_argument('--kommunenummer', nargs='+', help='Kommunenummer (e.g. 0213), consider using with --update_kommune')
     parser.add_argument('--update_kommune', default=False, action='store_true',
                         help='Updates/creates nsrIds for the given --kommunenummer (calls barnehageregister_nbrId.py)')
-    parser.add_argument('--output_filename', default='barnehagefakta.osm',
-                        help='Specify output filename, defaults to "barnehagefakta.osm"')
+    parser.add_argument('--output_filename', default=None,
+                        help='Specify output filename, defaults to "barnehagefakta.osm", for kommuner it will default to cache_dir/<nr>/barnehagefakta.osm')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
     # http://stackoverflow.com/a/20663028
@@ -201,6 +201,12 @@ if __name__ == '__main__':
             k = get_kommune(kommune_id, cache_dir=args.cache_dir)
             
             cache_dir = os.path.join(args.cache_dir, kommune_id) # work inside kommune folder
-            main(k, args.output_filename, cache_dir)
+            if args.output_filename is None:
+                output_filename = os.path.join(cache_dir, 'barnehagefakta.osm')
+            
+            main(k, output_filename, cache_dir)
     else:
-        main(ids, args.output_filename, args.cache_dir)
+        output_filename = args.output_filename
+        if output_filename is None:
+            output_filename = 'barnehagefakta.osm'
+        main(ids, output_filename, args.cache_dir)

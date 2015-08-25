@@ -1,17 +1,20 @@
+''' Utility file functions'''
 import os
 import time
 
-''' Utility file functions'''
+def create_dirname(filename):
+    """Given a filename, assures the directory exist"""
+    dirname = os.path.dirname(filename)
+    if not(os.path.exists(dirname)):
+        os.mkdir(dirname)
+
 def read_file(filename):
     with open(filename, 'r') as f:
         return f.read()
 
 def write_file(filename, content):
     """Write content to filename, tries to create dirname if the folder does not exist."""
-    dirname = os.path.dirname(filename)
-    if not(os.path.exists(dirname)):
-        os.mkdir(dirname)
-    
+    create_dirname(filename)
     with open(filename, 'w') as f:
         return f.write(content)
 

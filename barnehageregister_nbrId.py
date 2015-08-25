@@ -128,6 +128,7 @@ def all_pages(kommune_id):
 
 def update_kommune(kommune_id, cache_dir = 'data'):
     filename_output = os.path.join(cache_dir, kommune_id, 'nbr_udir_no.json')
+    file_util.create_dirname(filename_output)
     with open(filename_output, 'w') as f_out:
         for row in all_pages(kommune_id):
             f_out.write(json.dumps(row) + '\n') # newline makes it human readable, but not json readable..
