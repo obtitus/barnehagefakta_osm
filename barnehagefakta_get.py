@@ -16,7 +16,7 @@ import file_util
 def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data'):
     """Returns json string for the given nbr_id, caches result to file in directory cache_dir. 
     If the cached result is older than old_age_days a new version is fetched."""
-    filename = os.path.join(cache_dir, str(nbr_id) + '.json')
+    filename = os.path.join(cache_dir, 'barnehagefakta_no_nbrId{0}.json'.format(nbr_id))
     cached = file_util.cached_file(filename, old_age_days)
     if cached is not None:
         return cached
@@ -58,7 +58,7 @@ def barnehagefakta_get(nbr_id, *args, **kwargs):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Helper script for requesting (with local cache) and parsing json data from "Utdanningdsdirektoratet Nasjonalt barnehageregister"')
-    parser.add_argument('nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
+    parser.add_argument('nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister (e.g. 1015988).')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
     # http://stackoverflow.com/a/20663028
@@ -74,6 +74,7 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=args.loglevel)    
 
-    for nbr_id in args.nbr_id:
-        barnehagefakta_get(nbr_id, cache_dir=args.cache_dir)
-    
+    if args.nbr_id:             # list of ids given
+        for nbr_id in args.nbr_id:
+            barnehagefakta_get(nbr_id, cache_dir=args.cache_dir)
+

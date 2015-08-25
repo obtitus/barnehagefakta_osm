@@ -3,6 +3,7 @@
 
 # Standard python imports
 import re
+import os
 import datetime
 import logging
 logger = logging.getLogger('barnehagefakta')
@@ -10,6 +11,7 @@ logger = logging.getLogger('barnehagefakta')
 import osmapis
 # This project:
 from barnehagefakta_get import barnehagefakta_get
+from barnehageregister_nbrId import get_kommune, update_kommune
 
 def remove_empty_values(dct):
     """Remove all dictionary items where the value is '' or None."""
@@ -39,7 +41,7 @@ def parse_apningstid(apningstid):
         logger.warning('Error when parsing apningstid = "%s". %s', apningstid, e)
         return None
 
-def create_osmtags(udir_tags):
+def create_osmtags(udir_tags, operator='', name=''):
     # See http://data.udir.no/baf/json-beskrivelse.html for a full list of expected keys
 
     lat, lon = udir_tags['koordinatLatLng']
@@ -66,14 +68,6 @@ def create_osmtags(udir_tags):
 
     #'fee': udir_tags['kostpenger'] != 0, # needs to be combined with 'Pris for opphold', which is not present in the dataset
     
-    # consider parsing udir_tags[u'orgnr'] to get the 'operator',
-    # entire orgnr dataset can be found at http://data.brreg.no/oppslag/enhetsregisteret/enheter.xhtml
-    # api:  http://data.brreg.no/enhetsregisteret/enhet/{orgnr}.{format}
-    # or?:  http://data.brreg.no/enhetsregisteret/underenhet/987861649.json
-
-    # Should we add nsrId?
-    # what about a source tag?
-
     operator_type = ''
     if udir_tags['eierform'] == 'Privat':
         operator_type = 'private'
@@ -101,12 +95,26 @@ def create_osmtags(udir_tags):
         antallBarn = udir_tags['indikatorDataBarnehage']['antallBarn']
         capacity = int(antallBarn) # ensure int
 
+    start_date = ''
+    if udir_tags['opprettetDato'] != '':
+        try:
+            d = datetime.datetime.strptime(udir_tags['opprettetDato'], '%m/%d/%Y')
+            start_date = datetime.date(year=d.year, month=d.month, day=d.day).isoformat()
+        except Exception as e:
+            logger.warning("Invalid date in udir_tags['opprettetDato'] = '%s'. %s", udir_tags['opprettetDato'], e)
+            
+    if name != '':
+        assert name == udir_tags['navn'] # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
+        
     osm_tags = {'name': udir_tags['navn'],
+                'no-barnehage:nsrid': udir_tags['nsrId'], # key-name suggestions?
                 'opening_hours': opening_hours,
+                'operator': operator,
                 'operator:type': operator_type,
                 'min_age': min_age,
                 'max_age': max_age,
-                'capacity': capacity}
+                'capacity': capacity,
+                'start_date': start_date}
     osm_tags.update(tags_contact)
     
     # cleanup, remove empty vlues and convert to string.
@@ -120,20 +128,37 @@ def create_osmtags(udir_tags):
 
 def main(lst, output_filename, cache_dir):
     osm = osmapis.OSM()
-    for nbr_id in set(lst):
+    visited_ids = set()
+    for item in lst:
+        operator = ''
+        name = ''
+        # item can be either dictionary or simply items
+        try:
+            nbr_id = item['nbrId']
+            operator = item['Eier']
+            name = item['name']
+        except TypeError:
+            nbr_id = item
+
+        if nbr_id in visited_ids:
+            logger.warning('Already added %s', nbr_id)
+        visited_ids.add(nbr_id)
+
         try:
             udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
             if udir_tags == {}: continue
-            node = create_osmtags(udir_tags)
+            node = create_osmtags(udir_tags, operator=operator, name=name)
             osm.add(node)
         except:
             logger.exception('Un-handled exception for nbr_id = %s', nbr_id)
+            exit(1)
     osm.save(output_filename)
-    
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
-    parser.add_argument('nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
+    parser.add_argument('--nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
+    parser.add_argument('--kommunenummer', nargs='+', help='Kommunenummer (e.g. 0213)')
     parser.add_argument('--output_filename', default='barnehagefakta.osm',
                         help='Specify output filename, defaults to "barnehagefakta.osm"')
     parser.add_argument('--cache_dir', default='data',
@@ -149,5 +174,16 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    logging.basicConfig(level=args.loglevel)    
-    main(args.nbr_id, args.output_filename, args.cache_dir)
+    logging.basicConfig(level=args.loglevel)
+
+    ids = list()
+    if args.nbr_id is not None:
+        ids.extend(args.nbr_id)
+    
+    if args.kommunenummer:      # list of kommuner given
+        for kommune_id in args.kommunenummer:
+            cache_dir = os.path.join(args.cache_dir, kommune_id)
+            k = get_kommune(kommune_id)
+            main(k, args.output_filename, cache_dir)
+    else:
+        main(ids, args.output_filename, args.cache_dir)

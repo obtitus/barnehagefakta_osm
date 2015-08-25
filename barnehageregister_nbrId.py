@@ -12,12 +12,12 @@ from bs4 import BeautifulSoup
 # This project
 import file_util
 
-def get(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):
+def get_kommune(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):
     url = 'https://nbr.udir.no/sok/sokresultat?FritekstSok=&NedlagteEnheter=false&AktiveEnheter=true&AktiveEnheter=false&Eiere=false'
     url += '&Kommune.Id={0:s}'.format(kommune_id)
     url += '&Sidenummer={0:d}'.format(page_nr)
 
-    filename = os.path.join(cache_dir, kommune_id, 'nbr_udir_no_kommune{0}-page{1}.html'.format(kommune_id, page_nr))
+    filename = os.path.join(cache_dir, kommune_id, 'nbr_udir_no_page{0}.html'.format(page_nr))
     cached = file_util.cached_file(filename, old_age_days)
     if cached is not None:
         return cached
@@ -111,24 +111,34 @@ def parse(content):
             del raw_data[key]
         
         yield raw_data
-        
-if __name__ == '__main__':
-    import sys
-    logging.basicConfig(level=logging.DEBUG)
-    kommune_id = sys.argv[1]
 
-    cache_dir = 'data'
-    filename_output = os.path.join(cache_dir, kommune_id, 'nbr_udir_no.json')
-    f_out = open(filename_output, 'w')
-    
+def all_pages(kommune_id):
     for page_nr in xrange(1, 1024): # max pages (Oslo currently has 832)
-        content = get(kommune_id, page_nr=page_nr) # NOTE: passing page_nr=0 returns the same as page_nr=1
+        content = get_kommune(kommune_id, page_nr=page_nr) # WARNING: passing page_nr=0 returns the same as page_nr=1
         data = list(parse(content))
         if len(data) == 0:      # requesting past the page number does not raise any errors, but returns an empty list
             break
         for row in data:
-            f_out.write(json.dumps(row) + '\n')
+            yield row
     else:
         raise ValueError('ERROR, max pages exceeded, %s', page_nr)
-        
-    f_out.close()
+
+def update_kommune(kommune_id, cache_dir = 'data'):
+    filename_output = os.path.join(cache_dir, kommune_id, 'nbr_udir_no.json')
+    with open(filename_output, 'w') as f_out:
+        for row in all_pages(kommune_id):
+            f_out.write(json.dumps(row) + '\n') # newline makes it human readable, but not json readable..
+    return filename_output
+
+def get_kommune(kommune_id, cache_dir='data'):
+    """Assumes update_kommune has been called""" # fixme?
+    filename_input = os.path.join(cache_dir, kommune_id, 'nbr_udir_no.json')    
+    with open(filename_input, 'r') as f_out:
+        for row in f_out:
+            yield json.loads(row)
+
+if __name__ == '__main__':
+    import sys
+    logging.basicConfig(level=logging.DEBUG)
+    for kommune_id in sys.argv[1:]:
+        update_kommune(kommune_id)
