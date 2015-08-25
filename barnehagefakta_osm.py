@@ -106,7 +106,8 @@ def create_osmtags(udir_tags, operator='', name=''):
     if name != '':
         assert name == udir_tags['navn'] # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
         
-    osm_tags = {'name': udir_tags['navn'],
+    osm_tags = {'amenity': 'kindergarten',
+                'name': udir_tags['navn'],
                 'no-barnehage:nsrid': udir_tags['nsrId'], # key-name suggestions?
                 'opening_hours': opening_hours,
                 'operator': operator,
@@ -121,13 +122,14 @@ def create_osmtags(udir_tags, operator='', name=''):
     remove_empty_values(osm_tags)
     values_to_str(osm_tags)
 
-    # Create and return osmapis.Node
+    # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)
     logger.info('Created node %s', node)
-    return node
+    return node, udir_tags['type']
 
 def main(lst, output_filename, cache_dir):
     osm = osmapis.OSM()
+    osm_familiebarnehage = osmapis.OSM()
     visited_ids = set()
     for item in lst:
         operator = ''
@@ -147,12 +149,20 @@ def main(lst, output_filename, cache_dir):
         try:
             udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
             if udir_tags == {}: continue
-            node = create_osmtags(udir_tags, operator=operator, name=name)
-            osm.add(node)
+            node, barnehage_type = create_osmtags(udir_tags, operator=operator, name=name)
+
+            if barnehage_type == u'Familiebarnehage':
+                osm_familiebarnehage.add(node)
+            else:
+                osm.add(node)
         except:
             logger.exception('Un-handled exception for nbr_id = %s', nbr_id)
             exit(1)
+    
     osm.save(output_filename)
+    if len(osm_familiebarnehage) != 0:
+        base, ext = os.path.splitext(output_filename)
+        osm_familiebarnehage.save(base + '_familiebarnehager' + ext)
 
 if __name__ == '__main__':
     import argparse
