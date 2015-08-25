@@ -60,6 +60,7 @@ def create_osmtags(udir_tags, operator='', name=''):
         # service_hours better?
         opening_hours = '{0}-{1}'.format(o_fra, o_til)    
     # opening_hours combined with udir_tags['type'] == 'åpen' could be moderately useful on the go.
+    # add udir_tags['type'] to description:no ?
 
     # Consider parsing udir_tags['besoksAdresse']['adresselinje'] into addr:housenumber, addr:street
     # this could help when merging the data, since lat/lon is often incorrect.
@@ -168,7 +169,9 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
     parser.add_argument('--nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
-    parser.add_argument('--kommunenummer', nargs='+', help='Kommunenummer (e.g. 0213)')
+    parser.add_argument('--kommunenummer', nargs='+', help='Kommunenummer (e.g. 0213), consider using with --update_kommune')
+    parser.add_argument('--update_kommune', default=False, action='store_true',
+                        help='Updates/creates nsrIds for the given --kommunenummer (calls barnehageregister_nbrId.py)')
     parser.add_argument('--output_filename', default='barnehagefakta.osm',
                         help='Specify output filename, defaults to "barnehagefakta.osm"')
     parser.add_argument('--cache_dir', default='data',
@@ -192,8 +195,12 @@ if __name__ == '__main__':
     
     if args.kommunenummer:      # list of kommuner given
         for kommune_id in args.kommunenummer:
-            cache_dir = os.path.join(args.cache_dir, kommune_id)
-            k = get_kommune(kommune_id)
+            if args.update_kommune:
+                update_kommune(kommune_id, cache_dir=args.cache_dir)
+
+            k = get_kommune(kommune_id, cache_dir=args.cache_dir)
+            
+            cache_dir = os.path.join(args.cache_dir, kommune_id) # work inside kommune folder
             main(k, args.output_filename, cache_dir)
     else:
         main(ids, args.output_filename, args.cache_dir)
