@@ -29,7 +29,7 @@ def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data'):
         logger.error('Could not connect to %s, try again later? %s', url, e)
         return None
     
-    logger.info('requeted %s, got %s', url, r)
+    logger.info('requested %s, got %s', url, r)
     ret = None
     if r.status_code == 200:
         ret = r.content

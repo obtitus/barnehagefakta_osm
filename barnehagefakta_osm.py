@@ -52,13 +52,13 @@ def create_osmtags(udir_tags, operator='', name=''):
     if not(udir_tags['erAktiv']):
         raise ValueError('FIXME: erAktiv is False, what-to-do!')
 
-    opening_hours = ''
-    o_fra, o_til = parse_apningstid(udir_tags['apningstidFra']), parse_apningstid(udir_tags['apningstidTil'])
-    if o_fra is not None and o_til is not None:
-        # fixme: should we always add "Mo-Fr" (Monday-Friday) and PH (public holiday)?
-        # opening_hours = 'Mo-Fr {0}-{1}; PH off'.format(o_fra, o_til)
-        # service_hours better?
-        opening_hours = '{0}-{1}'.format(o_fra, o_til)    
+    # opening_hours = ''
+    # o_fra, o_til = parse_apningstid(udir_tags['apningstidFra']), parse_apningstid(udir_tags['apningstidTil'])
+    # if o_fra is not None and o_til is not None:
+    #     # fixme: should we always add "Mo-Fr" (Monday-Friday) and PH (public holiday)?
+    #     # opening_hours = 'Mo-Fr {0}-{1}; PH off'.format(o_fra, o_til)
+    #     # service_hours better?
+    #     opening_hours = '{0}-{1}'.format(o_fra, o_til)    
     # opening_hours combined with udir_tags['type'] == 'åpen' could be moderately useful on the go.
     # add udir_tags['type'] to description:no ?
 
@@ -110,7 +110,7 @@ def create_osmtags(udir_tags, operator='', name=''):
     osm_tags = {'amenity': 'kindergarten',
                 'name': udir_tags['navn'],
                 'no-barnehage:nsrid': udir_tags['nsrId'], # key-name suggestions?
-                'opening_hours': opening_hours,
+#                'opening_hours': opening_hours,
                 'operator': operator,
                 'operator:type': operator_type,
                 'min_age': min_age,
@@ -188,10 +188,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logging.basicConfig(level=args.loglevel)
-
-    ids = list()
-    if args.nbr_id is not None:
-        ids.extend(args.nbr_id)
     
     if args.kommunenummer:      # list of kommuner given
         for kommune_id in args.kommunenummer:
@@ -205,8 +201,8 @@ if __name__ == '__main__':
                 output_filename = os.path.join(cache_dir, 'barnehagefakta.osm')
             
             main(k, output_filename, cache_dir)
-    else:
+    if args.nbr_id:
         output_filename = args.output_filename
         if output_filename is None:
             output_filename = 'barnehagefakta.osm'
-        main(ids, output_filename, args.cache_dir)
+        main(args.nbr_id, output_filename, args.cache_dir)
