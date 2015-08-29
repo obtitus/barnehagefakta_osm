@@ -52,6 +52,7 @@ def create_osmtags(udir_tags, operator='', name=''):
     if not(udir_tags['erAktiv']):
         raise ValueError('FIXME: erAktiv is False, what-to-do!')
 
+    # It was decided to not include opening_hours
     # opening_hours = ''
     # o_fra, o_til = parse_apningstid(udir_tags['apningstidFra']), parse_apningstid(udir_tags['apningstidTil'])
     # if o_fra is not None and o_til is not None:
