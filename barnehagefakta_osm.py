@@ -12,6 +12,7 @@ import osmapis
 # This project:
 from barnehagefakta_get import barnehagefakta_get
 from barnehageregister_nbrId import get_kommune, update_kommune
+from kommunenummer import nrtonavn
 
 def remove_empty_values(dct):
     """Remove all dictionary items where the value is '' or None."""
@@ -166,11 +167,26 @@ def main(lst, output_filename, cache_dir):
         base, ext = os.path.splitext(output_filename)
         osm_familiebarnehage.save(base + '_familiebarnehager' + ext)
 
+def to_kommunenr(arg):
+    """Allow flexible format for kommune-name, by either number or name"""
+    try:
+        nr = int(arg)
+    except ValueError:          # not int
+        try:
+            nr = nrtonavn[nr]
+        except KeyError:
+            raise KeyError('Kommune-name "%s" not recognized' % nr)
+
+    if not nr in nrtonavn:
+        raise ValueError('Kommune-nr %s not found in kommunenummer.py, feel free to correct the file' % nr)
+    
+    return '{0:04d}'.format(nr)
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
     parser.add_argument('--nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
-    parser.add_argument('--kommunenummer', nargs='+', help='Kommunenummer (e.g. 0213), consider using with --update_kommune')
+    parser.add_argument('--kommune', nargs='+', help='Either kommunenummer (e.g. 0213 or 213) or kommunename. Use the special "ALL" for all kommunes. Consider using with --update_kommune')
     parser.add_argument('--update_kommune', default=False, action='store_true',
                         help='Updates/creates nsrIds for the given --kommunenummer (calls barnehageregister_nbrId.py)')
     parser.add_argument('--output_filename', default=None,
@@ -189,9 +205,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logging.basicConfig(level=args.loglevel)
-    
-    if args.kommunenummer:      # list of kommuner given
-        for kommune_id in args.kommunenummer:
+
+    if args.kommune:      # list of kommuner given
+        if args.kommune == ['ALL']:
+            kommunenummer = map(to_kommunenr, nrtonavn.keys())
+        else:
+            kommunenummer = map(to_kommunenr, args.kommune)
+        
+        for kommune_id in kommunenummer:
             if args.update_kommune:
                 update_kommune(kommune_id, cache_dir=args.cache_dir)
 
