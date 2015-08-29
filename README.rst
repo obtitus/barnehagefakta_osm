@@ -21,7 +21,9 @@ Dependencies
 ============
 * osmapis from https://github.com/xificurk/osmapis
 * requests: http://www.python-requests.org
+
   `pip install requests`
 * BeautifulSoup: http://www.crummy.com/software/BeautifulSoup/
+
   `pip install beautifulsoup4`
   
