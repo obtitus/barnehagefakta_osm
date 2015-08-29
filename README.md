@@ -2,7 +2,8 @@
 Script for importing/conflating data about kindergartens ("barnehager") in Norway to openstreetmap.
 
 For information about the dataset, go to http://data.udir.no/baf/
-For information about the import, go to <fixme:link to wiki>
+
+For information about the import, go to fixme:link to wiki
 
 ## Overview of files
 * barnehagefakta_get.py is intended to be a general script for downloading
