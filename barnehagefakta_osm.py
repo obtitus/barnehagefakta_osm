@@ -186,7 +186,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
     parser.add_argument('--nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
-    parser.add_argument('--kommune', nargs='+', help='Either kommunenummer (e.g. 0213 or 213) or kommunename. Use the special "ALL" for all kommunes. Consider using with --update_kommune')
+    parser.add_argument('--kommune', nargs='+', help='Either kommunenummer (e.g. 0213 or 213) or kommunename (e.g. Ski). Use the special "ALL" for all kommunes. Consider using with --update_kommune')
     parser.add_argument('--update_kommune', default=False, action='store_true',
                         help='Updates/creates nsrIds for the given --kommunenummer (calls barnehageregister_nbrId.py)')
     parser.add_argument('--output_filename', default=None,
