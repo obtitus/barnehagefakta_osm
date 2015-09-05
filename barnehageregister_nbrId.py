@@ -18,7 +18,7 @@ def get(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):
     url += '&Sidenummer={0:d}'.format(page_nr)
 
     filename = os.path.join(cache_dir, kommune_id, 'nbr_udir_no_page{0}.html'.format(page_nr))
-    cached = file_util.cached_file(filename, old_age_days)
+    cached, _ = file_util.cached_file(filename, old_age_days)
     if cached is not None:
         return cached
 
