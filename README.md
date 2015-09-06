@@ -11,6 +11,7 @@ For information about the import, go to fixme:link to wiki
 
 * The api does not currently give a list of nsrids so
   barnehageregister_nbrId.py parses https://nbr.udir.no/sok for a given kommune-nr.
+  The file kommunenummer.py contains a dictionary of kommune-nr and name.
 
 * barnehagefakta_osm.py is the main script to use for openstreetmap related tasks.
   use --help for usage.
