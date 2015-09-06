@@ -30,7 +30,7 @@ def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data', keep_hist
     (2b) Calling the function again with the same {nbr_id} after old_age_days has passed,
     will visit barnehagefakta again, refreshing and returning the local .json file.
     If the responce has changed from last time, the previous result is archived as
-    cache_dir/barnehagefakta_no_nbrId{nbr_id}-{%Y-%m-%d}.json"""
+    cache_dir/barnehagefakta_no_nbrId{nbr_id}-{%Y-%m-%d}-OUTDATED.json"""
     
     filename = os.path.join(cache_dir, 'barnehagefakta_no_nbrId{0}.json'.format(nbr_id))
     cached, outdated = file_util.cached_file(filename, old_age_days)
@@ -58,7 +58,7 @@ def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data', keep_hist
             # note: the date will represent the date we discovered this to be outdated
             # which is not all that logical, but we just need a unique filename (assuming old_age_days > 1).
             logger.warning('Change in response for id=%s, archiving old result', nbr_id)
-            file_util.rename_file(filename, d.strftime("-%Y-%m-%d")) # move old one
+            file_util.rename_file(filename, d.strftime("-%Y-%m-%d-OUTDATED")) # move old one
             #return ret, cached
         else:
             file_util.write_file(filename, ret) # write
