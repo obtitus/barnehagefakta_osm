@@ -18,7 +18,6 @@ For information about the import, go to fixme:link to wiki
 
 * `update_osm.py` is used for keeping the openstreetmap data up-to date.
 
-* `update_osm.py`
 ## Dependencies
 * osmapis from https://github.com/xificurk/osmapis
 * requests: http://www.python-requests.org
