@@ -7,7 +7,9 @@ import logging
 logger = logging.getLogger('barnehagefakta.nbrId')
 # non-standard imports
 import requests
-request_session = requests.session()
+# request_session = requests.session()
+import gentle_requests
+request_session = gentle_requests.GentleRequests()
 from bs4 import BeautifulSoup
 # This project
 import file_util
@@ -59,8 +61,11 @@ def get_raw(table):
 
         raw_data = dict()
         link, name = row.h2.a['href'], row.h2.a.text
-        reg = re.match('/enhet/(\d+)', link)
-        nbrId = reg.group(1)
+        reg = re.match('/enhet/(eier/)?(\d+)', link)
+        if reg.group(1) is not None:
+            logger.warning('We got a "eier" when requesting Eiere=false, skipping')
+            continue
+        nbrId = reg.group(2)
         logger.info('Name = "%s" (%s)', name, nbrId)
         raw_data['name'] = name
         raw_data['nbrId'] = nbrId

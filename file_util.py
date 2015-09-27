@@ -22,6 +22,7 @@ def create_dirname(filename):
     dirname = os.path.dirname(filename)
     if not(os.path.exists(dirname)):
         os.mkdir(dirname)
+    return filename
 
 def read_file(filename):
     with open(filename, 'r') as f:

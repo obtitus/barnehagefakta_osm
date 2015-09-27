@@ -903,3 +903,5 @@ nrtonavn = {
     2029 : u"Nord-Varanger",
     2030 : u"Sør-Varanger",
 }
+
+navntonr = dict(zip(nrtonavn.values(),nrtonavn.keys()))

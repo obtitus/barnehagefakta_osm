@@ -9,8 +9,9 @@ import logging
 logger = logging.getLogger('barnehagefakta.get')
 # Non-standard imports
 import requests
-request_session = requests.session()
 # This project
+import gentle_requests
+request_session = gentle_requests.GentleRequests()
 import file_util
 #
 # Main
@@ -53,22 +54,21 @@ def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data', keep_hist
         ret = '404'
         
     if ret is not None:
-        if keep_history and ret != cached: # avoid overriding previous cache
+        if keep_history and cached is not None and ret != cached: # avoid overriding previous cache
             d = datetime.utcnow()
             # note: the date will represent the date we discovered this to be outdated
             # which is not all that logical, but we just need a unique filename (assuming old_age_days > 1).
             logger.warning('Change in response for id=%s, archiving old result', nbr_id)
             file_util.rename_file(filename, d.strftime("-%Y-%m-%d-OUTDATED")) # move old one
             #return ret, cached
-        else:
-            file_util.write_file(filename, ret) # write
+
+        file_util.write_file(filename, ret) # write
     
     return ret
 
 def barnehagefakta_get(nbr_id, *args, **kwargs):
     """Returns dictionary with data for the given nbr_id. 
     Additonal arguments are passed to barnehagefakta_get_json"""
-    fixme
     j = barnehagefakta_get_json(nbr_id, *args, **kwargs)
     if j is None:
         return {}

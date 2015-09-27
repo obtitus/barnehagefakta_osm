@@ -12,7 +12,8 @@ import osmapis
 # This project:
 from barnehagefakta_get import barnehagefakta_get
 from barnehageregister_nbrId import get_kommune, update_kommune
-from kommunenummer import nrtonavn
+from kommunenummer import nrtonavn, navntonr
+import file_util
 
 def remove_empty_values(dct):
     """Remove all dictionary items where the value is '' or None."""
@@ -44,14 +45,15 @@ def parse_apningstid(apningstid):
 
 def create_osmtags(udir_tags, operator='', name=''):
     # See http://data.udir.no/baf/json-beskrivelse.html for a full list of expected keys
-
+    nsrId = int(udir_tags['nsrId']) # ensure int
+    
     lat, lon = udir_tags['koordinatLatLng']
     attribs = dict(lat=lat, lon=lon)
     # checks:
     if not(udir_tags['erBarnehage']):
-        raise ValueError('Error: data says this is not a barnehage erBarnehage=%s' % udir_tags['erBarnehage'])
+        raise ValueError('Error: %d data says this is not a barnehage erBarnehage=%s' % (nsrId, udir_tags['erBarnehage']))
     if not(udir_tags['erAktiv']):
-        raise ValueError('FIXME: erAktiv is False, what-to-do!')
+        raise ValueError('FIXME: %d erAktiv is False, what-to-do!' % nsrId)
 
     # It was decided to not include opening_hours
     # opening_hours = ''
@@ -77,16 +79,17 @@ def create_osmtags(udir_tags, operator='', name=''):
     elif udir_tags['eierform'] == 'Kommunal':
         operator_type = 'public'
     else:
-        logger.warning('Unknown "eierform=%s", fixme: consider using "erPrivatBarnehage=%s"',
-                       udir_tags['eierform'], udir_tags['erPrivatBarnehage'])
+        logger.warning('%d, Unknown "eierform=%s", fixme: consider using "erPrivatBarnehage=%s"',
+                       nsrId, udir_tags['eierform'], udir_tags['erPrivatBarnehage'])
 
     min_age, max_age = '', ''
     age = udir_tags['alder']
-    try:
-        min_age, max_age = re.split('[^\d.]+', age)
-        min_age, max_age = int(min_age), int(max_age) # ensure ints (fixme: support float?):
-    except ValueError as e:
-        logger.warning('unable to parse "%s" into min and max age, %s', age, e)
+    if age != '':
+        try:
+            min_age, max_age = re.split('[^\d.]+', age)
+            min_age, max_age = int(min_age), int(max_age) # ensure ints (fixme: support float?):
+        except ValueError as e:
+            logger.warning('%d Unable to parse "%s" into min and max age, %s', nsrId, age, e)
 
     tags_contact = dict()
     if udir_tags['kontaktinformasjon'] is not None:
@@ -96,7 +99,9 @@ def create_osmtags(udir_tags, operator='', name=''):
     capacity = ''
     if udir_tags['indikatorDataBarnehage'] is not None:
         antallBarn = udir_tags['indikatorDataBarnehage']['antallBarn']
-        capacity = int(antallBarn) # ensure int
+        if antallBarn is not None:
+            capacity = int(antallBarn) # ensure int
+
 
     start_date = ''
     if udir_tags['opprettetDato'] != '':
@@ -104,7 +109,7 @@ def create_osmtags(udir_tags, operator='', name=''):
             d = datetime.datetime.strptime(udir_tags['opprettetDato'], '%m/%d/%Y')
             start_date = datetime.date(year=d.year, month=d.month, day=d.day).isoformat()
         except Exception as e:
-            logger.warning("Invalid date in udir_tags['opprettetDato'] = '%s'. %s", udir_tags['opprettetDato'], e)
+            logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", nsrId, udir_tags['opprettetDato'], e)
             
     if name != '':
         assert name == udir_tags['navn'] # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
@@ -121,13 +126,13 @@ def create_osmtags(udir_tags, operator='', name=''):
                 'start_date': start_date}
     osm_tags.update(tags_contact)
     
-    # cleanup, remove empty vlues and convert to string.
+    # cleanup, remove empty values and convert to string.
     remove_empty_values(osm_tags)
     values_to_str(osm_tags)
 
     # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)
-    logger.info('Created node %s', node)
+    logger.info('%d, Created node %s', nsrId, node)
     return node, udir_tags['type']
 
 def main(lst, output_filename, cache_dir):
@@ -161,8 +166,9 @@ def main(lst, output_filename, cache_dir):
         except:
             logger.exception('Un-handled exception for nbr_id = %s', nbr_id)
             exit(1)
-    
-    osm.save(output_filename)
+
+    if len(osm) != 0:
+        osm.save(output_filename)
     if len(osm_familiebarnehage) != 0:
         base, ext = os.path.splitext(output_filename)
         osm_familiebarnehage.save(base + '_familiebarnehager' + ext)
@@ -173,9 +179,9 @@ def to_kommunenr(arg):
         nr = int(arg)
     except ValueError:          # not int
         try:
-            nr = nrtonavn[nr]
+            nr = navntonr[arg]
         except KeyError:
-            raise KeyError('Kommune-name "%s" not recognized' % nr)
+            raise KeyError('Kommune-name "%s" not recognized' % arg)
 
     if not nr in nrtonavn:
         raise ValueError('Kommune-nr %s not found in kommunenummer.py, feel free to correct the file' % nr)
@@ -204,7 +210,20 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    logging.basicConfig(level=args.loglevel)
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(args.loglevel)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    def add_file_handler(filename='warnings.log'):
+        fh = logging.FileHandler(filename, mode='w')
+        fh.setLevel(logging.WARNING)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        return fh
+    fh = add_file_handler()
 
     if args.kommune:      # list of kommuner given
         if args.kommune == ['ALL']:
@@ -213,12 +232,16 @@ if __name__ == '__main__':
             kommunenummer = map(to_kommunenr, args.kommune)
         
         for kommune_id in kommunenummer:
+            cache_dir = os.path.join(args.cache_dir, kommune_id) # work inside kommune folder
+            logger.removeHandler(fh)
+            warn_filename = os.path.join(cache_dir, 'warnings.log')
+            fh = add_file_handler(file_util.create_dirname(warn_filename))
+            
             if args.update_kommune:
                 update_kommune(kommune_id, cache_dir=args.cache_dir)
 
             k = get_kommune(kommune_id, cache_dir=args.cache_dir)
             
-            cache_dir = os.path.join(args.cache_dir, kommune_id) # work inside kommune folder
             if args.output_filename is None:
                 output_filename = os.path.join(cache_dir, 'barnehagefakta.osm')
             
