@@ -14,6 +14,7 @@ import requests
 request_session = requests.session()
 import osmapis
 # This project
+import file_util
 try:
     import mypasswords
 except ImportError:
@@ -42,14 +43,44 @@ def find_outdated(root):
                 yield filename_outdated, filename_updated, nbr_id
                 #yield os.path.join(root, f), date, nbr_id
 
-def find_all_nsrid_osm_elements(osm):
-    # """Parses the given xml and yields all elements containing the tag barnehage:nsrid,
-    # the result might contain osmapis.Node, osmapis.Way or osmapis.Relation."""
+def find_all_nsrid_osm_elements(osm, nsrid=None):
+    """Parses the given osmapis.OSM and yields all elements containing the tag barnehage:nsrid,
+    the result might contain osmapis.Node, osmapis.Way or osmapis.Relation.
+    Optionally only yield those with barnehage:nsrid=nsrid"""
     for elem in osm:
         #print 'elem, tags', elem.tags, 'attribs', elem.attribs
         if 'no-barnehage:nsrid' in elem.tags:
+            if nsrid is not None and elem.tags['barnehage:nsrid'] != nsrid:
+                continue
+            
             logger.debug('found tags = "%s"\nattribs="%s"', elem.tags, elem.attribs)
             yield elem
+
+def overpass_nsrid(nsrid='*',
+                   bbox_scandinavia = '[bbox=3.8671874,57.63363,31.96582,71.6498329]'): 
+     # bbox_scandinavia: limit request size, should contains all of Norway.
+
+    filename = 'overpass_api_cache_%s_%s.xml' % (nsrid, bbox_scandinavia)
+    filename = filename.replace(',', '')
+    filename = filename.replace('*', '-')
+    filename = filename.replace('[', '')
+    filename = filename.replace(']', '')
+    filename = filename.replace('=', '')
+    logger.debug('cached overpass filename "%s"', filename)
+    
+    cached, outdated = file_util.cached_file(filename, old_age_days=1)
+    if cached is not None and not(outdated):
+        return cached
+    
+    r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=%s]%s' % (nsrid, bbox_scandinavia))
+    ret = r.content
+
+    if r.status_code == 200:
+        file_util.write_file(filename, ret)
+        return ret
+    else:
+        logger.error('Invalid status code %s', r.status_code)
+        return None
     
 def update_osm(original, modified, username=None, password=None, comment=''):
     #'''osmapis changeset example'''
@@ -142,8 +173,6 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
         return True
 
 if __name__ == '__main__':
-    bbox_scandinavia = '[bbox=3.8671874,57.63363,31.96582,71.6498329]' # limit request size, should contains all of Norway.
-    nsrid = 1016218
 
     # 
     #r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=*]%s' % (bbox_scandinavia))
@@ -159,15 +188,21 @@ if __name__ == '__main__':
         updated = json.load(open(filename_updated))
         osm_outdated, _ = create_osmtags(outdated)
         osm_updated, _ = create_osmtags(updated)
-        
-        r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=%d]%s' % (int(nbr_id), bbox_scandinavia))
-        xml = r.content
+
+        if osm_outdated.tags == osm_updated.tags: # none of the tags that we care about has changed
+            logger.info('nbrid = %s no relevant tags changed, removing', nbr_id) # fixme: check for lat/lon changes...
+            os.remove(filename_outdated)
+            continue
+
+        xml = overpass_nsrid()
+        # r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=%d]%s' % (int(nbr_id), bbox_scandinavia))
+        # xml = r.content
         # xml = reply_way
         #print 'xml', xml
 
         osm_original = osmapis.OSM.from_xml(xml)        
         osm = osmapis.OSM.from_xml(xml)
-        osm_elements = list(find_all_nsrid_osm_elements(osm))
+        osm_elements = list(find_all_nsrid_osm_elements(osm, nsrid=nbr_id))
         if len(osm_elements) == 0:
             logger.info('nbrid = %s has not been added to osm, removing the OUTDATED file', nbr_id)
             os.remove(filename_outdated)

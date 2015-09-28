@@ -20,7 +20,7 @@ def rename_file(filename, append):
 def create_dirname(filename):
     """Given a filename, assures the directory exist"""
     dirname = os.path.dirname(filename)
-    if not(os.path.exists(dirname)):
+    if dirname != '' and not(os.path.exists(dirname)):
         os.mkdir(dirname)
     return filename
 
