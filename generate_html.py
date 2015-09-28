@@ -163,7 +163,8 @@ def main(osm, root='data', template='template.html', index_template='index_templ
                     output.write(page)
 
     info = u"""
-    Data fra <a href=https://nbr.udir.no>https://nbr.udir.no</a> og <a href=http://openstreetmap.org> openstreetmap.org</a>
+    Data fra <a href=https://nbr.udir.no>https://nbr.udir.no</a> og <a href=http://openstreetmap.org> openstreetmap.org</a>.
+    Kun barnehager med taggen "no-barnehage:nsrid" blir gjenkjent.
     Trykk på en av radene i tabellen under for å vise barnehage-data for kommunen.
     """
     page = index_template.render(info=info, table=index_table)
