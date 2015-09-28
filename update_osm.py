@@ -50,7 +50,7 @@ def find_all_nsrid_osm_elements(osm, nsrid=None):
     for elem in osm:
         #print 'elem, tags', elem.tags, 'attribs', elem.attribs
         if 'no-barnehage:nsrid' in elem.tags:
-            if nsrid is not None and elem.tags['barnehage:nsrid'] != nsrid:
+            if nsrid is not None and elem.tags['no-barnehage:nsrid'] != nsrid:
                 continue
             
             logger.debug('found tags = "%s"\nattribs="%s"', elem.tags, elem.attribs)
