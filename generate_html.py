@@ -102,8 +102,8 @@ def create_rows(osm, data):
         row.append(links)
 
         # Map
-        _map = '<div id="wrapper", style="width:256px;">'
-        _map += '<div id="map{0}", style="width: 256px; height: 256px;position: absolute"></div>'.format(nsrId)
+        _map = '<div id="wrapper" style="width:256px;">'
+        _map += '<div id="map{0}" style="width: 256px; height: 256px;position: relative"></div>'.format(nsrId)
         _map += '<script>create_map(map{nsrId}, {lat}, {lon})</script>'.format(nsrId=nsrId,
                                                                                 lat=lat,
                                                                                 lon=lon)
