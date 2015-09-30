@@ -174,9 +174,12 @@ def main(osm, root='data', template='template.html', index_template='index_templ
                     output.write(page)
 
     info = u"""
-    Data fra <a href=https://nbr.udir.no>https://nbr.udir.no</a> og <a href=http://openstreetmap.org> openstreetmap.org</a>.
+    <p>Data fra <a href=https://nbr.udir.no>https://nbr.udir.no</a> og <a href=http://openstreetmap.org> openstreetmap.org</a>.
     Kun barnehager med taggen "no-barnehage:nsrid" blir gjenkjent.
+    </p>
+    <p>
     Trykk på en av radene i tabellen under for å vise barnehage-data for kommunen.
+    </p>
     """
     page = index_template.render(info=info, table=index_table)
     with codecs.open('index.html', 'w', "utf-8-sig") as output:
