@@ -40,7 +40,7 @@ def create_rows(osm, data):
     table = list()
     count_osm = 0
     count_duplicate_osm = 0
-    for kindergarten in data:
+    for kindergarten in sorted(data, key=lambda x: int(x.tags.get('capacity', 0)), reverse=True):
         # shorthands
         nsrId = kindergarten.tags['no-barnehage:nsrid']
         lat, lon = kindergarten.attribs['lat'], kindergarten.attribs['lon']
@@ -58,6 +58,8 @@ def create_rows(osm, data):
         # Tags from OSM
         osm_data = list(update_osm.find_all_nsrid_osm_elements(osm, nsrid=nsrId))
         tags = ''
+        osm_id = None
+        # osm_xml = None        
         if len(osm_data) == 0:
             tags = 'Fant ingen openstreetmap objekt med no-barnehage:nsrid = %s' % nsrId
         elif len(osm_data) != 1:
@@ -71,6 +73,16 @@ def create_rows(osm, data):
             for key, value in sorted(osm_data.tags.items()):
                 tags += '%s = %s\n' % (key, value)
             tags += '</pre>'
+            # import xml.etree.ElementTree as ET
+            # osm_xml = "'%s'" % ET.tostring(osm_data.to_xml())
+
+            if isinstance(osm_data, osmapis.Node):
+                osm_id = '"node/%s"' % osm_data.attribs['id']
+            if isinstance(osm_data, osmapis.Way):
+                osm_id = '"way/%s/full"' % osm_data.attribs['id']
+            if isinstance(osm_data, osmapis.Relation):
+                osm_id = '"relation/%s/full"' % osm_data.attribs['id']
+            
             try:
                 lat, lon = get_lat_lon(osm, osm_data)
             except Exception as e:
@@ -108,12 +120,15 @@ def create_rows(osm, data):
         row.append(links)
 
         # Map
-        _map = '<div id="wrapper" style="width:256px;">'
-        _map += '<div id="map{0}" style="width: 256px; height: 256px;position: relative"></div>'.format(nsrId)
-        _map += '<script>create_map(map{nsrId}, {lat}, {lon})</script>'.format(nsrId=nsrId,
-                                                                                lat=lat,
-                                                                                lon=lon)
-        _map += '</div>'
+        if osm_id is None: osm_id = 'null'
+        # if osm_xml is None: osm_xml = 'null'        
+        # _map = '<div id="wrapper" style="width:256px;">'
+        _map = '<div id="map{0}" style="width: 256px; height: 256px;position: relative"></div>'.format(nsrId)
+        _map += '<script>create_map(map{nsrId}, {lat}, {lon}, {osm_id})</script>'.format(nsrId=nsrId,
+                                                                                         osm_id=osm_id,
+                                                                                         lat=lat,
+                                                                                         lon=lon)
+        # _map += '</div>'
         row.append(_map)
 
         table.append(row)
