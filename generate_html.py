@@ -161,7 +161,12 @@ def main(osm, root='data', template='template.html', index_template='index_templ
                     info += u' Familiebarnehager er vanskeligere å kartlegge, disse ligger derfor i sin egen fil: {link}'.format(link=link)
                     
             if len(table) != 0:
-                index_table.append((page_filename, u'Vis kommune', [kommune_nr, kommune_name, len(table), count_osm]))
+                per = (100.*count_osm)/len(table)
+                progress = '<meter style="width:100%" value="{value}" min="{min}" max="{max}" optimum="{max}">{per} %</meter>'\
+                           .format(value=count_osm,
+                                   min=0, max=len(table),
+                                   per=per)
+                index_table.append((page_filename, u'Vis kommune', [kommune_nr, kommune_name, len(table), count_osm, progress]))
                 
                 page = template.render(title=title, table=table, info=info)
                 # Kommune-folder
