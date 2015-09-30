@@ -14,7 +14,8 @@ import update_osm
 import kommunenummer
 
 link_template = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'
-base_url = 'http://obtitus.github.io/barnehagefakta_osm_data/'
+# base_url = 'http://obtitus.github.io/barnehagefakta_osm_data/'
+# base_url = ''
 
 def get_osm_files(folder):
     for filename in os.listdir(folder):
@@ -82,6 +83,11 @@ def create_rows(osm, data):
         title = u'Du blir sendt til barnehagens side på barnehagefakta.no'
         text = u'Besøk på barnehagefakta.no'
         links += link_template.format(href=href, title=title, text=text)
+
+        href = 'http://www.openstreetmap.org/#map=17/{lat}/{lon}'.format(lat=lat,lon=lon)
+        title = u'Se posisjonen i openstreetmap'
+        text = u'Besøk på openstreetmap.org'
+        links += link_template.format(href=href, title=title, text=text)
         
         href = 'https://nbr.udir.no/status/rapporterfeil/{0}'.format(nsrId)
         title = u'Du blir sendt til nbr.uio.no hvor du kan melde om feil i data-settet. Vurder også å melde fra til kommunen.'
@@ -143,19 +149,19 @@ def main(osm, root='data', template='template.html', index_template='index_templ
                 count_duplicate_osm += c_duplicate_osm
 
                 if filename.endswith('barnehagefakta.osm'):
-                    link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=base_url+filename,
+                    link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
                                                                                   title=filename,
                                                                                   text=filename)
                     info += 'For JSON, last ned: {link}.'.format(link=link)
                     
                 if filename.endswith('barnehagefakta_familiebarnehager.osm'):
-                    link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=base_url+filename,
+                    link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
                                                                                   title=filename,
                                                                                   text=filename)
                     info += u' Familiebarnehager er vanskeligere å kartlegge, disse ligger derfor i sin egen fil: {link}'.format(link=link)
                     
             if len(table) != 0:
-                index_table.append((base_url+page_filename, u'Vis kommune', [kommune_nr, kommune_name, len(table), count_osm]))
+                index_table.append((page_filename, u'Vis kommune', [kommune_nr, kommune_name, len(table), count_osm]))
                 
                 page = template.render(title=title, table=table, info=info)
                 # Kommune-folder
