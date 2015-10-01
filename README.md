@@ -17,16 +17,25 @@ For information about the import, go to fixme:link to wiki
   use `--help` for usage.
 
 * `update_osm.py` is used for keeping the openstreetmap data up-to date.
+  You need to supply a `mypasswords.py` file with your openstreetmap username and password
+  (see `mypasswords_template.py`).
 
 * `generate_html.py` is used for generating http://obtitus.github.io/barnehagefakta_osm_data/
   (and is the script with the most need of a re-write)
   
 ## Dependencies
 * osmapis from https://github.com/xificurk/osmapis
-* requests: http://www.python-requests.org
+
+  `git clone git@github.com:xificurk/osmapis.git`
+  
+* requests (http://www.python-requests.org)
 
   `pip install requests`
-* BeautifulSoup: http://www.crummy.com/software/BeautifulSoup/
+  
+* BeautifulSoup (http://www.crummy.com/software/BeautifulSoup/)
 
   `pip install beautifulsoup4`
   
+* Jinja2 (http://jinja.pocoo.org) required by `generate_html.py`
+
+  `pip install jinja2`
