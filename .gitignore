@@ -1,0 +1,8 @@
+*.pyc
+*~
+barnehagefakta_osm_data/*
+coverage/*
+data/*
+mypasswords.py
+osmapis*
+.coverage
