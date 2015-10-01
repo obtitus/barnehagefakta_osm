@@ -189,8 +189,8 @@ def to_kommunenr(arg):
     return '{0:04d}'.format(nr)
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description='Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
+    import argparse_util
+    parser = argparse_util.get_parser('Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
     parser.add_argument('--nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
     parser.add_argument('--kommune', nargs='+', help='Either kommunenummer (e.g. 0213 or 213) or kommunename (e.g. Ski). Use the special "ALL" for all kommunes. Consider using with --update_kommune')
     parser.add_argument('--update_kommune', default=False, action='store_true',
@@ -199,14 +199,7 @@ if __name__ == '__main__':
                         help='Specify output filename, defaults to "barnehagefakta.osm", for kommuner it will default to cache_dir/<nr>/barnehagefakta.osm')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
-    # http://stackoverflow.com/a/20663028
-    parser.add_argument('-d', '--debug', help="Print lots of debugging statements",
-                        action="store_const", dest="loglevel", const=logging.DEBUG,
-                        default=logging.DEBUG)
-    parser.add_argument('-v', '--verbose', help="Be verbose",
-                        action="store_const", dest="loglevel", const=logging.INFO)
-    parser.add_argument('-q', '--quiet', help="Suppress non-warning messages.",
-                        action="store_const", dest="loglevel", const=logging.WARNING)
+    argparse_util.add_verbosity(parser, default=logging.DEBUG)
     
     args = parser.parse_args()
 

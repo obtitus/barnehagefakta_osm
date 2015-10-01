@@ -173,12 +173,15 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
         return True
 
 if __name__ == '__main__':
+    import argparse_util
+    parser = argparse_util.get_parser('Keeps OSM objects with no-barnehage:nsrid=* updated if there are changes in the NBR data. Does not overwrite modified OSM data.')
+    parser.add_argument('--data_dir', default='data',
+                        help='Specify directory for .osm files, defaults to data/')
+    argparse_util.add_verbosity(parser, default=logging.WARNING)
 
-    # 
-    #r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=*]%s' % (bbox_scandinavia))
-    # print r
-    # print r.content
-    logging.basicConfig(level=logging.DEBUG)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=args.loglevel)
 
     changeset_comment = 'Auto updated by barnehagefakta_osm.py. The barnehagefakta.no data has been modified and the openstreetmap data corresponds to the previous value from barnehagefakta.no, an automatic update is therefore done.'
     root = 'data'

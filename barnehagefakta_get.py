@@ -82,19 +82,12 @@ def barnehagefakta_get(nbr_id, *args, **kwargs):
     return dct
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description='Helper script for requesting (with local cache) and parsing json data from "Utdanningdsdirektoratet Nasjonalt barnehageregister"')
+    import argparse_util
+    parser = argparse_util.get_parser('Helper script for requesting (with local cache) and parsing json data from "Utdanningdsdirektoratet Nasjonalt barnehageregister"')
     parser.add_argument('nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister (e.g. 1015988).')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
-    # http://stackoverflow.com/a/20663028
-    parser.add_argument('-d', '--debug', help="Print lots of debugging statements",
-                        action="store_const", dest="loglevel", const=logging.DEBUG,
-                        default=logging.DEBUG)
-    parser.add_argument('-v', '--verbose', help="Be verbose",
-                        action="store_const", dest="loglevel", const=logging.INFO)
-    parser.add_argument('-q', '--quiet', help="Suppress non-warning messages.",
-                        action="store_const", dest="loglevel", const=logging.WARNING)
+    argparse_util.add_verbosity(parser, default=logging.DEBUG)
     
     args = parser.parse_args()
 

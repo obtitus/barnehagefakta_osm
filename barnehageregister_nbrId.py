@@ -136,7 +136,7 @@ def update_kommune(kommune_id, cache_dir = 'data'):
     file_util.create_dirname(filename_output)
     with open(filename_output, 'w') as f_out:
         for row in all_pages(kommune_id):
-            f_out.write(json.dumps(row) + '\n') # newline makes it human readable, but not json readable..
+            f_out.write(json.dumps(row) + '\n') # FIXME: newline makes it human readable, but not json readable..
     return filename_output
 
 def get_kommune(kommune_id, cache_dir='data'):
@@ -147,7 +147,16 @@ def get_kommune(kommune_id, cache_dir='data'):
             yield json.loads(row)
 
 if __name__ == '__main__':
-    import sys
-    logging.basicConfig(level=logging.DEBUG)
-    for kommune_id in sys.argv[1:]:
+    import argparse_util
+    parser = argparse_util.get_parser('''Gets nbr_ids for the given kommune by searching https://nbr.udir.no/sok/.
+    Note: this file is called by barnehagefakta_osm.py when --update_kommune is passed.''')
+    parser.add_argument('Kommunenr', nargs='?',
+                        help='List of kommune-ids')
+    parser.add_argument('--cache_dir', default='data',
+                        help='Specify directory for cached .html files and .json outputs, defaults to data/')    
+    argparse_util.add_verbosity(parser, default=logging.DEBUG)
+
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    for kommune_id in parser.kommunenr:
         update_kommune(kommune_id)

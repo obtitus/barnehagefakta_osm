@@ -213,19 +213,23 @@ def main(osm, root='data', template='template.html', index_template='index_templ
     with codecs.open('index.html', 'w', "utf-8-sig") as output:
         output.write(page)
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.WARNING)
-    
+def get_osm_data():
     xml = update_osm.overpass_nsrid()
     osm = osmapis.OSM.from_xml(xml)
     osm_elements = list(update_osm.find_all_nsrid_osm_elements(osm))
-    print len(osm_elements), osm_elements
+    print len(osm_elements), osm_elements    
+    return osm, osm_elements
+
+if __name__ == '__main__':
+    import argparse_util
+    parser = argparse_util.get_parser('Looks for <kommune_id>/*.osm files in <data_dir> and generates html for http://obtitus.github.io/barnehagefakta_osm_data/. The site is generated in the current directory.')
+    parser.add_argument('--data_dir', default='data',
+                        help='Specify directory for .osm files, defaults to data/')
+    argparse_util.add_verbosity(parser, default=logging.WARNING)
+
+    args = parser.parse_args()
     
-    main(osm, 'data')
-    
-    # for root, dirs, files in os.walk(root):
-        
-    #     for f in files:
-    #         if f.endswith('OUTDATED.json'):
-    #             try:
-    #                 reg = re.search('nbrId(\d+)-(\d+-\d+-\d+)-OUTDATED.json', f)
+    logging.basicConfig(level=args.loglevel)
+
+    osm = get_osm_data()
+    main(osm, args.data_dir)
