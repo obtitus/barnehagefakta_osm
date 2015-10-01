@@ -18,6 +18,9 @@ For information about the import, go to fixme:link to wiki
 
 * `update_osm.py` is used for keeping the openstreetmap data up-to date.
 
+* `generate_html.py` is used for generating http://obtitus.github.io/barnehagefakta_osm_data/
+  (and is the script with the most need of a re-write)
+  
 ## Dependencies
 * osmapis from https://github.com/xificurk/osmapis
 * requests: http://www.python-requests.org
