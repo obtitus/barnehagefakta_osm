@@ -13,7 +13,7 @@ from jinja2 import Template
 import update_osm
 import kommunenummer
 
-link_template = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'
+link_template = u'<a href="{href}"\ntitle="{title}">{text}</a>'
 # base_url = 'http://obtitus.github.io/barnehagefakta_osm_data/'
 # base_url = ''
 
@@ -58,7 +58,8 @@ def create_rows(osm, data):
         # Tags from OSM
         osm_data = list(update_osm.find_all_nsrid_osm_elements(osm, nsrid=nsrId))
         tags = ''
-        osm_id = None
+        osm_url = None        
+        osm_url_api = None
         # osm_xml = None        
         if len(osm_data) == 0:
             tags = 'Fant ingen openstreetmap objekt med no-barnehage:nsrid = %s' % nsrId
@@ -77,11 +78,20 @@ def create_rows(osm, data):
             # osm_xml = "'%s'" % ET.tostring(osm_data.to_xml())
 
             if isinstance(osm_data, osmapis.Node):
-                osm_id = '"node/%s"' % osm_data.attribs['id']
-            if isinstance(osm_data, osmapis.Way):
-                osm_id = '"way/%s/full"' % osm_data.attribs['id']
-            if isinstance(osm_data, osmapis.Relation):
-                osm_id = '"relation/%s/full"' % osm_data.attribs['id']
+                osm_type_str = 'node'
+            elif isinstance(osm_data, osmapis.Way):
+                osm_type_str = 'way'
+            elif isinstance(osm_data, osmapis.Relation):
+                osm_type_str = 'relation'
+            else:
+                raise ValueError('osm_data type not recognized, %s, %s', type(osm_data), osm_data)
+
+            osm_id = osm_data.attribs['id']            
+            full = ''
+            if osm_type_str is not 'node':
+                full = '/full'
+            osm_url_api = '"https://www.openstreetmap.org/api/0.6/%s/%s%s"' % (osm_type_str, osm_id, full)
+            osm_url = 'http://www.openstreetmap.org/%s/%s' % (osm_type_str, osm_id)
             
             try:
                 lat, lon = get_lat_lon(osm, osm_data)
@@ -94,22 +104,25 @@ def create_rows(osm, data):
         href = 'http://barnehagefakta.no/barnehage/{0}'.format(nsrId)
         title = u'Du blir sendt til barnehagens side på barnehagefakta.no'
         text = u'Besøk på barnehagefakta.no'
-        links += link_template.format(href=href, title=title, text=text)
+        links += link_template.format(href=href, title=title, text=text) + '\n'
 
-        href = 'http://www.openstreetmap.org/#map=17/{lat}/{lon}'.format(lat=lat,lon=lon)
+        if osm_url is None:
+            href = 'http://www.openstreetmap.org/#map=17/{lat}/{lon}'.format(lat=lat,lon=lon)
+        else:
+            href = osm_url
         title = u'Se posisjonen i openstreetmap'
         text = u'Besøk på openstreetmap.org'
-        links += link_template.format(href=href, title=title, text=text)
+        links += link_template.format(href=href, title=title, text=text) + '\n'
         
         href = 'https://nbr.udir.no/status/rapporterfeil/{0}'.format(nsrId)
         title = u'Du blir sendt til nbr.uio.no hvor du kan melde om feil i data-settet. Vurder også å melde fra til kommunen.'
         text = u'Meld feil til NBR'
-        links += link_template.format(href=href, title=title, text=text)
+        links += link_template.format(href=href, title=title, text=text) + '\n'
 
         href = 'http://www.openstreetmap.org/note/new#map=17/{lat}/{lon}'.format(lat=lat,lon=lon)
         title = u'Gjør openstreetmap mappere oppmerksom på feil i kartet.'
         text = 'Meld feil til OSM'
-        links += link_template.format(href=href, title=title, text=text)
+        links += link_template.format(href=href, title=title, text=text) + '\n'
         
         href = 'http://www.openstreetmap.org/edit?editor=id&lat={lat}&lon={lon}&zoom=17'.format(lat=lat,lon=lon)
         title = u'Du blir sendt til openstreetmap sin web-editor'
@@ -120,12 +133,12 @@ def create_rows(osm, data):
         row.append(links)
 
         # Map
-        if osm_id is None: osm_id = 'null'
+        if osm_url_api is None: osm_url_api = 'null'
         # if osm_xml is None: osm_xml = 'null'        
         # _map = '<div id="wrapper" style="width:256px;">'
         _map = '<div id="map{0}" style="width: 256px; height: 256px;position: relative"></div>'.format(nsrId)
-        _map += '<script>create_map(map{nsrId}, {lat}, {lon}, {osm_id})</script>'.format(nsrId=nsrId,
-                                                                                         osm_id=osm_id,
+        _map += '<script>create_map(map{nsrId}, {lat}, {lon}, {osm_url_api})</script>'.format(nsrId=nsrId,
+                                                                                         osm_url_api=osm_url_api,
                                                                                          lat=lat,
                                                                                          lon=lon)
         # _map += '</div>'
