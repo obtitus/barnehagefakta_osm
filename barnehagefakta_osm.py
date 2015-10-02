@@ -190,11 +190,14 @@ def to_kommunenr(arg):
 
 if __name__ == '__main__':
     import argparse_util
-    parser = argparse_util.get_parser('Converts norwegian "barnehage"-data from "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap.')
-    parser.add_argument('--nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister.')
-    parser.add_argument('--kommune', nargs='+', help='Either kommunenummer (e.g. 0213 or 213) or kommunename (e.g. Ski). Use the special "ALL" for all kommunes. Consider using with --update_kommune')
+    parser = argparse_util.get_parser('''Converts norwegian kindergarten-data from 
+"Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap. 
+Specify either by --nbr_id or by --kommune.''',
+                                      epilog='Example: ./barnehagefakta_osm.py --kommune ALL --update_kommune')
+    parser.add_argument('--nbr_id', nargs='+', help='Unique NBR-id(s) to download and parse (e.g. 1015988).')
+    parser.add_argument('--kommune', nargs='+', help='Assumes barnehageregister_nbrId.py has been called, otherwise, use with --update_kommune. Specify either kommunenummer (e.g. 0213 or 213) or kommunename (e.g. Ski). Use the special "ALL" for all kommunes. Places a .osm file in each of the kommune folders unless --output_filename is used.')
     parser.add_argument('--update_kommune', default=False, action='store_true',
-                        help='Updates/creates nsrIds for the given --kommunenummer (calls barnehageregister_nbrId.py)')
+                        help='Finds valid nsrIds for the given --kommunenummer (calls barnehageregister_nbrId.py)')
     parser.add_argument('--output_filename', default=None,
                         help='Specify output filename, defaults to "barnehagefakta.osm", for kommuner it will default to cache_dir/<nr>/barnehagefakta.osm')
     parser.add_argument('--cache_dir', default='data',

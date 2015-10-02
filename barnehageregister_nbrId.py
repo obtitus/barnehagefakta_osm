@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf8
+
 """Gets and parses search results from nbr.udir.no for nbrId and Eier"""
 # Standard python imports
 import os

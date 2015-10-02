@@ -3,6 +3,10 @@
 
 import json
 import codecs
+def open_utf8(filename, *args, **kwargs):
+    logger.debug('open(%s, %s, %s)', filename, args, kwargs)
+    return codecs.open(filename, *args, encoding="utf-8-sig", **kwargs)
+
 import os.path
 import logging
 logger = logging.getLogger('barnehagefakta.generate_html')
@@ -56,7 +60,10 @@ def create_rows(osm, data):
         row.append(tags)
 
         # Tags from OSM
-        osm_data = list(update_osm.find_all_nsrid_osm_elements(osm, nsrid=nsrId))
+        osm_data = []
+        if osm is not None:
+            osm_data = list(update_osm.find_all_nsrid_osm_elements(osm, nsrid=nsrId))
+            
         tags = ''
         osm_url = None        
         osm_url_api = None
@@ -149,17 +156,18 @@ def create_rows(osm, data):
     return table, count_osm, count_duplicate_osm
         #yield row
 
-def main(osm, root='data', template='template.html', index_template='index_template.html'):
-    with open(template) as f:
+def main(osm, data_dir='data', root_output='', template='template.html', index_template='index_template.html'):
+    
+    with open_utf8(template) as f:
         template = Template(f.read())
-    with open(index_template) as f:
+    with open_utf8(index_template) as f:
         index_template = Template(f.read())
 
     index_table = list()
-    for kommune_nr in os.listdir(root):
-        folder = os.path.join(root, kommune_nr)
+    for kommune_nr in os.listdir(data_dir):
+        folder = os.path.join(data_dir, kommune_nr)
         if os.path.isdir(folder):
-            page_filename = kommune_nr + '.html'
+            page_filename = os.path.join(root_output, kommune_nr + '.html')
             
             logger.info('Kommune folder = %s', folder)
 
@@ -198,7 +206,7 @@ def main(osm, root='data', template='template.html', index_template='index_templ
                 
                 page = template.render(title=title, table=table, info=info)
                 # Kommune-folder
-                with codecs.open(page_filename, 'w', "utf-8-sig") as output:
+                with open_utf8(page_filename, 'w') as output:
                     output.write(page)
 
     info = u"""
@@ -210,7 +218,8 @@ def main(osm, root='data', template='template.html', index_template='index_templ
     </p>
     """
     page = index_template.render(info=info, table=index_table)
-    with codecs.open('index.html', 'w', "utf-8-sig") as output:
+    index = os.path.join(root_output, 'index.html')
+    with open_utf8(index, 'w') as output:
         output.write(page)
 
 def get_osm_data():
@@ -218,18 +227,32 @@ def get_osm_data():
     osm = osmapis.OSM.from_xml(xml)
     osm_elements = list(update_osm.find_all_nsrid_osm_elements(osm))
     print len(osm_elements), osm_elements    
-    return osm, osm_elements
+    return osm
 
 if __name__ == '__main__':
     import argparse_util
-    parser = argparse_util.get_parser('Looks for <kommune_id>/*.osm files in <data_dir> and generates html for http://obtitus.github.io/barnehagefakta_osm_data/. The site is generated in the current directory.')
+    parser = argparse_util.get_parser('Looks for <data_dir>/<kommune_id>/*.osm files and generates html for http://obtitus.github.io/barnehagefakta_osm_data/. The site is generated in the current directory by default and assumes template.html and index_template.html exists in the current directory.')
     parser.add_argument('--data_dir', default='data',
                         help='Specify directory for .osm files, defaults to data/')
+    parser.add_argument('--output_dir', default='.',
+                        help="Specify output directory, defaults to current directory")        
+    parser.add_argument('--template', default='template.html',
+                        help="Specify template file for each of the kommune pages, defaults to template.html")
+    parser.add_argument('--index_template', default='index_template.html',
+                        help="Specify template file for index.html, defaults to index_template.html")
+    parser.add_argument('--no-overpass', default=False, action='store_true',
+                        help="Do not call the openstreetmap overpass api looking for no-barnehage:nsrid")
     argparse_util.add_verbosity(parser, default=logging.WARNING)
 
     args = parser.parse_args()
     
     logging.basicConfig(level=args.loglevel)
 
-    osm = get_osm_data()
-    main(osm, args.data_dir)
+    if args.no_overpass:
+        osm = None
+    else:
+        osm = get_osm_data()
+    
+    main(osm, args.data_dir,
+         template=args.template, index_template=args.index_template,
+         root_output=args.output_dir)

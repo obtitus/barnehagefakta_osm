@@ -83,8 +83,8 @@ def barnehagefakta_get(nbr_id, *args, **kwargs):
 
 if __name__ == '__main__':
     import argparse_util
-    parser = argparse_util.get_parser('Helper script for requesting (with local cache) and parsing json data from "Utdanningdsdirektoratet Nasjonalt barnehageregister"')
-    parser.add_argument('nbr_id', nargs='+', help='barnehagens unike id fra Nasjonalt barnehageregister (e.g. 1015988).')
+    parser = argparse_util.get_parser('Helper script for requesting (with local cache) and parsing json data from "Utdanningdsdirektoratet Nasjonalt barnehageregister (NBR)"')
+    parser.add_argument('nbr_id', nargs='?', help='Unique NBR-id(s) to download (e.g. 1015988).')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
     argparse_util.add_verbosity(parser, default=logging.DEBUG)
