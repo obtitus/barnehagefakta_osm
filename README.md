@@ -5,6 +5,8 @@ For information about the dataset, go to http://data.udir.no/baf/
 
 For information about the import, go to fixme:link to wiki
 
+To view/download the output, go to http://obtitus.github.io/barnehagefakta_osm_data/
+
 ## Overview of files
 * `barnehagefakta_get.py` is intended to be a general script for downloading
   (with a local cache) json files from http://barnehagefakta.no/api/barnehage/<nsrid>.
