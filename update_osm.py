@@ -104,8 +104,10 @@ def update_osm(original, modified, username=None, password=None, comment=''):
     return True
 
 def resolve_conflict(osm_element, osm_outdated, osm_updated):
-    print 'outdated', osm_outdated
-    print 'updated', osm_updated
+    logger.debug('resolve_conflict:osm: %s', osm_element)    
+    logger.debug('resolve_conflict:outdated: %s', osm_outdated)
+    logger.debug('resolve_conflict:updated: %s', osm_updated)
+    
     osm_element_tags_original = dict(osm_element.tags) # keep a copy
     
     if osm_outdated.attribs['lat'] != osm_updated.attribs['lat'] or\
@@ -151,7 +153,12 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
     for key in s:
         # NBR has modified a value
         if osm_updated.tags[key] != osm_outdated.tags[key]:
+            logger.info('modified tag "%s"', key)
             if key in osm_element.tags:
+                if osm_element.tags[key] == osm_updated.tags[key]:
+                    logger.info('NBR has modified %s="%s" to "%s", but osm already has the value "%s"',
+                                   key, osm_outdated.tags[key], osm_updated.tags[key], osm_element.tags[key])
+                    continue
                 if osm_element.tags[key] != osm_outdated.tags[key]:
                     logger.warning('Unresolved conflict, NBR has modified %s="%s" to "%s", but osm has the value "%s"',
                                    key, osm_outdated.tags[key], osm_updated.tags[key], osm_element.tags[key])

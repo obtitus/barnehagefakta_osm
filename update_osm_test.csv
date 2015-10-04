@@ -1,0 +1,16 @@
+Tag from Barnehagefakta is,value in OSM (compared to the barnehagefakta value),Action taken
+new,is unset,auto update openstreetmap
+new,matches old value,auto update openstreetmap (there is no old value)
+new,conflicts old value,auto update openstreetmap (there is no new value)
+new,matches new value,ignore
+new,conflicts new value,conflict detected manually handled
+modified,is unset,conflict detected manually handled
+modified,matches old value,auto update openstreetmap
+modified,conflicts old value,conflict detected manually handled
+modified,matches new value,ignore
+modified,conflicts new value,conflict
+deleted,is unset,ignore
+deleted,matches old value,auto update openstreetmap
+deleted,conflicts old value,conflict detected manually handled
+deleted,matches new value,auto update openstreetmap (there is no new value)
+deleted,conflicts new value,auto update openstreetmap (there is no new value)

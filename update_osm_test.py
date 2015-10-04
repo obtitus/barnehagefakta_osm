@@ -3,6 +3,8 @@
 # Standard python imports
 import json
 import unittest
+import logging
+logger = logging.getLogger('barnehagefakta.update_osm.test')
 # non standard
 import osmapis
 # This project
@@ -234,3 +236,95 @@ class MyTest(unittest.TestCase):
         ret = update_osm.resolve_conflict(self.osm_element, self.osm_outdated, self.osm_updated)
         self.assertFalse(key in self.osm_element.tags)
         self.assertEqual(ret, False)
+
+    def test_all(self):
+        def new(d_old, d_new, k):
+            self.assertNotIn(k, d_old)
+            self.assertNotIn(k, d_new)
+            d_new[k] = 'new'
+        def modified(d_old, d_new, k):
+            self.assertIn(k, d_old)
+            self.assertIn(k, d_new)
+            self.assertEqual(d_new[k], d_old[k])
+            d_new[k] += 'modified'
+        def deleted(d_old, d_new, k):
+            self.assertIn(k, d_old)
+            self.assertIn(k, d_new)
+            del d_new[k]
+        
+        tag_from_barnehagefakta_is = {'new': new,
+                                      'modified': modified,
+                                      'deleted': deleted}
+
+        def set_new(d, k, new_v, old_v):
+            if new_v is not None:            
+                d[k] = new_v
+        def set_old(d, k, new_v, old_v):
+            if old_v is not None:
+                d[k] = old_v
+        def set_new_conflict(d, k, new_v, old_v):
+            if new_v is not None:
+                d[k] = new_v + 'conflicting'
+        def set_old_conflict(d, k, new_v, old_v):
+            if old_v is not None:
+                d[k] = old_v + 'conflicting'
+        def delete_key(d, k, new_v, old_v):
+            if k in d:
+                del d[k]
+        
+        value_in_OSM = {'matches new value': set_new,
+                        'matches old value': set_old,
+                        'conflicts new value': set_new_conflict,
+                        'conflicts old value': set_old_conflict,
+                        'is unset': delete_key}
+
+        action = dict()
+        def tokey(key1, key2):
+            return "{0}, {1}".format(key1, key2)
+        
+        with open('update_osm_test.csv', 'r') as f:
+            f.readline()        # skip first line
+            for line in f:
+                ls = line.split(',')
+                k = tokey(ls[0], ls[1])
+                a = ls[2]       # action
+                if 'ignore' in a or 'N/A' in a:
+                    action[k] = ('ignore', True)
+                elif 'conflict' in a:
+                    action[k] = ('conflict', False)
+                elif 'auto update' in a:
+                    action[k] = ('auto_update', 'update')
+                else:
+                    raise ValueError(line)
+        logger.debug('%s', action)
+
+        for NBR in tag_from_barnehagefakta_is:
+            for OSM in value_in_OSM:
+                info = 'nbr="%s", osm="%s", action="%s"' % (NBR, OSM, action[tokey(NBR, OSM)])
+                logger.info(info)
+
+                # shorthand
+                d_old, d_new = self.osm_outdated.tags, self.osm_updated.tags
+                d_osm = self.osm_element.tags
+                
+                if NBR is 'new':
+                    k = 'newKey'
+                else:
+                    k = self.osm_updated.tags.keys()[0] # pick a key
+
+                # updates the correct dictionaries:
+                tag_from_barnehagefakta_is[NBR](d_old, d_new, k)
+                new_v, old_v = d_new.get(k, None), d_old.get(k, None)
+                logger.debug('new_v = %s, old_v = %s', new_v, old_v)
+                value_in_OSM[OSM](d=d_osm, k=k, new_v=new_v, old_v=old_v)
+
+                # Call:
+                ret = update_osm.resolve_conflict(self.osm_element, self.osm_outdated, self.osm_updated)
+
+                # Check:
+                expected_ret = action[tokey(NBR, OSM)][1]
+                self.assertEqual(ret, expected_ret, "For the test: %s, got %s, expected %s" % (info, ret, expected_ret))
+                
+                self.setUp()    # cleanup
+                
+        #assert False
