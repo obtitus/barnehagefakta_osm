@@ -21,7 +21,7 @@ For information about the import, go to fixme:link to wiki
   (see `mypasswords_template.py`).
 
 * `generate_html.py` is used for generating http://obtitus.github.io/barnehagefakta_osm_data/
-  (and is the script with the most need of a re-write)
+  (and is the script in the most need of a re-write)
   
 ## Dependencies
 * osmapis from https://github.com/xificurk/osmapis
