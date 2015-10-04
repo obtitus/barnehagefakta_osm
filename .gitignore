@@ -4,5 +4,6 @@ barnehagefakta_osm_data/*
 coverage/*
 data/*
 mypasswords.py
-osmapis*
+osmapis.py
+osmapis/*
 .coverage

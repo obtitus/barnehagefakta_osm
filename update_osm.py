@@ -12,9 +12,9 @@ logger = logging.getLogger('barnehagefakta.update_osm')
 # Non standard
 import requests
 request_session = requests.session()
-import osmapis
 # This project
 import file_util
+import osmapis_nsrid as osmapis
 try:
     import mypasswords
 except ImportError:
@@ -203,9 +203,10 @@ if __name__ == '__main__':
         # xml = reply_way
         #print 'xml', xml
 
-        osm_original = osmapis.OSM.from_xml(xml)        
-        osm = osmapis.OSM.from_xml(xml)
-        osm_elements = list(find_all_nsrid_osm_elements(osm, nsrid=nbr_id))
+        osm_original = osmapis.OSMnsrid.from_xml(xml)
+        osm = osmapis.OSMnsrid.from_xml(xml)
+        osm_elements = osm.nsrids.get(nbr_id, [])
+        #osm_elements = list(find_all_nsrid_osm_elements(osm, nsrid=nbr_id))
         if len(osm_elements) == 0:
             logger.info('nbrid = %s has not been added to osm, removing the OUTDATED file', nbr_id)
             os.remove(filename_outdated)

@@ -10,11 +10,10 @@ def open_utf8(filename, *args, **kwargs):
 import os.path
 import logging
 logger = logging.getLogger('barnehagefakta.generate_html')
-# non standard
-import osmapis
 from jinja2 import Template
 # This project
 import update_osm
+import osmapis_nsrid as osmapis
 import kommunenummer
 
 link_template = u'<a href="{href}"\ntitle="{title}">{text}</a>'
@@ -27,7 +26,7 @@ def get_osm_files(folder):
         if filename.endswith('.osm'):
             logger.info('.osm file %s', filename)
             with open(filename) as f:
-                data = osmapis.OSM.from_xml(f.read())
+                data = osmapis.OSMnsrid.from_xml(f.read())
             
             yield filename, data
 
@@ -62,8 +61,8 @@ def create_rows(osm, data):
         # Tags from OSM
         osm_data = []
         if osm is not None:
-            osm_data = list(update_osm.find_all_nsrid_osm_elements(osm, nsrid=nsrId))
-            
+            osm_data = osm.nsrids.get(nsrId, [])
+        
         tags = ''
         osm_url = None        
         osm_url_api = None
@@ -224,9 +223,9 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
 
 def get_osm_data():
     xml = update_osm.overpass_nsrid()
-    osm = osmapis.OSM.from_xml(xml)
-    osm_elements = list(update_osm.find_all_nsrid_osm_elements(osm))
-    print len(osm_elements), osm_elements    
+    osm = osmapis.OSMnsrid.from_xml(xml)
+    # osm_elements = list(update_osm.find_all_nsrid_osm_elements(osm))
+    print len(osm.nsrids), osm.nsrids
     return osm
 
 if __name__ == '__main__':
