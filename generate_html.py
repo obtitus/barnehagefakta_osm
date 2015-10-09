@@ -31,12 +31,26 @@ def get_osm_files(folder):
             yield filename, data
 
 def get_lat_lon(osm, osm_data):
-    try:
-        lat, lon = osm_data.attribs['lat'], osm_data.attribs['lon']
-    except KeyError:
-        # not a node? Lets try this (just pick the first node in way/relation)
-        n = osm.nodes[osm_data.nds[0]]
-        lat, lon = n.attribs['lat'], n.attribs['lon']
+    way = None
+    node = None
+    if isinstance(osm_data, osmapis.Relation):
+        try:
+            way = osm.ways[osm_data.members[0]['ref']]
+        except KeyError:
+            logger.warning('Not yet supported, unable to get lat/lon from Relations')
+            return None
+    elif isinstance(osm_data, osmapis.Way):
+        way = osm_data
+    elif isinstance(osm_data, osmapis.Node):
+        node = osm_data
+    else:
+        raise ValueError('expected osmapis.Relation/Way/Node object, got %s', type(osm_data))
+
+    if way is not None:
+        # not a node? just pick the first node in way
+        node = osm.nodes[way.nds[0]]
+
+    lat, lon = node.attribs['lat'], node.attribs['lon']
     return lat, lon
 
 def create_rows(osm, data):
@@ -101,8 +115,10 @@ def create_rows(osm, data):
             
             try:
                 lat, lon = get_lat_lon(osm, osm_data)
+            except TypeError:
+                pass            # hack
             except Exception as e:
-                logger.exception('Unable to get lat/lon from %s: %s', osm_data, e)
+                logger.exception('Unable to get lat/lon from %s %s', osm_data, e)
         row.append(tags)
         
         # Links
@@ -170,8 +186,8 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
             
             logger.info('Kommune folder = %s', folder)
 
-            kommune_name = kommunenummer.nrtonavn[int(kommune_nr)]
-            title = 'Barnehager i %s kommune (%s)' % (kommune_name, kommune_nr)
+            kommune_name = kommunenummer.nrtonavn[int(kommune_nr)] + ' kommune'
+            #title = 'Barnehager i %s kommune (%s)' % (kommune_name, kommune_nr)
             
             table = list()
             info = ''
@@ -185,15 +201,15 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
 
                 if filename.endswith('barnehagefakta.osm'):
                     link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
-                                                                                  title=filename,
+                                                                                  title=u"Trykk for å laste ned "+ filename,
                                                                                   text=filename)
-                    info += 'For JSON, last ned: {link}.'.format(link=link)
+                    info += u'<p>{link} inneholder data fra NBR som noder.</p>'.format(link=link)
                     
                 if filename.endswith('barnehagefakta_familiebarnehager.osm'):
                     link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
-                                                                                  title=filename,
+                                                                                  title=u"Trykk for å laste ned "+filename,
                                                                                   text=filename)
-                    info += u' Familiebarnehager er vanskeligere å kartlegge, disse ligger derfor i sin egen fil: {link}'.format(link=link)
+                    info += u'<p>Familiebarnehager er vanskeligere å kartlegge, disse ligger derfor i sin egen fil: {link}</p>'.format(link=link)
                     
             if len(table) != 0:
                 per = (100.*count_osm)/len(table)
@@ -203,7 +219,10 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                                    per=per)
                 index_table.append((page_filename, u'Vis kommune', [kommune_nr, kommune_name, len(table), count_osm, progress]))
                 
-                page = template.render(title=title, table=table, info=info)
+                page = template.render(kommune_name=kommune_name,
+                                       kommune_nr=kommune_nr,
+                                       table=table, info=info,
+                                       last_update='FIXME')
                 # Kommune-folder
                 with open_utf8(page_filename, 'w') as output:
                     output.write(page)

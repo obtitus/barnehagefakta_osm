@@ -3,7 +3,7 @@ Script for updating/importing/conflating data about kindergartens ("barnehager")
 
 For information about the dataset, go to http://data.udir.no/baf/
 
-For information about the import, go to fixme:link to wiki
+For information about the import, go to http://wiki.openstreetmap.org/wiki/Key:no-barnehage:nsrid
 
 To view/download the output, go to http://obtitus.github.io/barnehagefakta_osm_data/
 
