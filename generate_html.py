@@ -203,7 +203,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                     link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
                                                                                   title=u"Trykk for å laste ned "+ filename,
                                                                                   text=filename)
-                    info += u'<p>{link} inneholder data fra NBR som noder, denne kan åpnes i JSON.</p>'.format(link=link)
+                    info += u'<p>{link} inneholder data fra NBR som noder, denne kan åpnes i JOSM.</p>'.format(link=link)
                     
                 if filename.endswith('barnehagefakta_familiebarnehager.osm'):
                     link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
