@@ -6,17 +6,25 @@ import re
 import os
 import hashlib
 import logging
-logger = logging.getLogger('barnehagefakta')
+logger = logging.getLogger('barnehagefakta.conflate_osm')
+
 # This project
 import file_util
 import osmapis_nsrid as osmapis
 from barnehagefakta_osm import to_kommunenr
 
-def overpass_xml(xml):
-    filename = 'conflate_cache_' + hashlib.md5(xml).hexdigest() + '.osm'
-    cached, outdated = file_util.cached_file(filename, old_age_days=1)
+def overpass_xml(xml, old_age_days=1, conflate_cache_filename=None):
+    ''' Query the OverpassAPI with the given xml query, cache result for old_age_days days
+    in file conflate_cache_filename (defaults to conflate_cache_<md5(xml)>.osm)
+    '''
+    if conflate_cache_filename is None:
+        filename = 'conflate_cache_' + hashlib.md5(xml).hexdigest() + '.osm'
+    else:
+        filename = conflate_cache_filename
+    
+    cached, outdated = file_util.cached_file(filename, old_age_days=old_age_days)
     if cached is not None and not(outdated):
-        print 'Using overpass responce stored as "%s". Delete this file if you wish an updated version' % filename
+        print 'Using overpass responce stored as "%s". Delete this file if you want an updated version' % filename
         return osmapis.OSMnsrid.from_xml(cached)
 
     o = osmapis.OverpassAPI()
@@ -51,18 +59,36 @@ def get_kommune(kommune):
         
 if __name__ == '__main__':
     import argparse_util
-    parser = argparse_util.get_parser('A tool for assisting with the conflation of openstreetmap and NBR data. You will need JSON to review and upload changes to openstreetmap')
+    parser = argparse_util.get_parser("""A tool for assisting with the conflation of openstreetmap and NBR data. 
+    You will need JSON to review and upload changes to openstreetmap. 
+    Using this tool is therefore completely safe, play around, 
+    you changes will not be visible on openstreetmap!
+
+    As a 'working area' you need to supply either a --relation_id or --bounding_box,
+    as an NBR data input, you need to supply either one or more --osm_kommune or --osm_filename.
+""")
     
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--relation_id', help="Bounding box as a OSM relation id (e.g. 406130 for Ski kommune)")
-    group.add_argument('--bounding_box', help="Bounding box [west, south, east, north], e.g. '10.8,59.7,10.9,59.7', use (almost) whatever delimiter you like")
+    group.add_argument('--relation_id',
+                       help="Bounding box as a OSM relation id (e.g. 406130 for Ski kommune)")
+    group.add_argument('--bounding_box',
+                       help="""Bounding box [west, south, east, north], e.g. '10.8,59.7,10.9,59.7', 
+                       use (almost) whatever delimiter you like""")
+
+    parser.add_argument('--osm_kommune', nargs='+',
+                        help="""Specify one or more kommune, 
+                        either by kommunenummer (e.g. 0213 or 213) or kommunename (e.g. Ski). 
+                        If the correct file can not be found, 
+                        it will be downloaded from http://obtitus.github.io/barnehagefakta_osm_data/""")
+    
+    parser.add_argument('--osm_filename', nargs="+",
+                        help="""As an alternative to --osm_kommune. 
+                        Specify one or more .osm files (assumed to originate from data.udir.no)""")
 
     parser.add_argument('--query_template', default="query_template.xml",
-                        help="A overpass query template xml file, defaults to query_template.xml")
-
-    parser.add_argument('--osm_kommune', nargs='+', help='Specify one or more kommune, either by kommunenummer (e.g. 0213 or 213) or kommunename (e.g. Ski). If the correct file can not be found, it will be downloaded from http://obtitus.github.io/barnehagefakta_osm_data/')
-    parser.add_argument('--osm_filename', nargs="+", help="As an alternative to --osm_kommune. Specify one or more .osm files (assumed to originate from data.udir.no)")
-    
+                        help="Optionally specify a overpass query xml file, defaults to query_template.xml")
+    parser.add_argument('--conflate_cache_filename', default=None,
+                        help='Optionally specify a filename for the overpass responce.')
     argparse_util.add_verbosity(parser, default=logging.DEBUG)
     
     args = parser.parse_args()
@@ -103,7 +129,7 @@ if __name__ == '__main__':
     query = query.format(variables_query=variables_query,
                          area_query=area_query)
     logger.debug('XML query """%s"""', query)
-    osm = overpass_xml(query)
+    osm = overpass_xml(query, conflate_cache_filename=args.conflate_cache_filename)
     for key in osm.nsrids:
         print key, osm.nsrids[key]
 

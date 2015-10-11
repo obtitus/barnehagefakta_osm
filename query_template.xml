@@ -1,0 +1,119 @@
+<!-- The following was generated in http://overpass-turbo.eu/# -->
+<!-- It was then exported by "Export -> Query -> convert to Overpass-XML" and modified-->
+
+<osm-script output="xml" timeout="60">
+  {variables_query}
+  <union into="_">
+    <query into="_" type="node">
+      <has-kv k="amenity" modv="" v="kindergarten"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="amenity" modv="" v="kindergarten"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="amenity" modv="" v="kindergarten"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="building" modv="" v="kindergarten"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="building" modv="" v="kindergarten"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="building" modv="" v="kindergarten"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="name" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="name" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="name" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="name:no" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="name:no" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="name:no" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="operator" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="operator" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="operator" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="owner" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="owner" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="owner" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="note" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="note" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="note" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="note:no" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="note:no" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="note:no" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="node">
+      <has-kv k="addr:housename" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="way">
+      <has-kv k="addr:housename" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+    <query into="_" type="relation">
+      <has-kv k="addr:housename" modv="" regv="[Bb]arnehage"/>
+      {area_query}
+    </query>
+  </union>
+  <print e="" from="_" geometry="skeleton" limit="" mode="body" n="" order="id" s="" w=""/>
+  <recurse from="_" into="_" type="down"/>
+  <print e="" from="_" geometry="skeleton" limit="" mode="skeleton" n="" order="quadtile" s="" w=""/>
+</osm-script>
