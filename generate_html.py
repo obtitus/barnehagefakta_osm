@@ -2,6 +2,7 @@
 # -*- coding: utf8
 
 import json
+from datetime import datetime
 import codecs
 def open_utf8(filename, *args, **kwargs):
     logger.debug('open(%s, %s, %s)', filename, args, kwargs)
@@ -183,6 +184,9 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
         folder = os.path.join(data_dir, kommune_nr)
         if os.path.isdir(folder):
             page_filename = os.path.join(root_output, kommune_nr + '.html')
+            last_update_stamp = os.path.getmtime(folder)
+            last_update_datetime = datetime.fromtimestamp(last_update_stamp)
+            last_update = last_update_datetime.strftime('%Y-%m-%d %H:%M')
             
             logger.info('Kommune folder = %s', folder)
 
@@ -222,7 +226,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                 page = template.render(kommune_name=kommune_name,
                                        kommune_nr=kommune_nr,
                                        table=table, info=info,
-                                       last_update='FIXME')
+                                       last_update=last_update)
                 # Kommune-folder
                 with open_utf8(page_filename, 'w') as output:
                     output.write(page)
