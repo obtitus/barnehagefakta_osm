@@ -41,8 +41,10 @@ def get_kommune_local(kommune):
             filename1 = os.path.join(root, kommune, 'barnehagefakta.osm')
             filename2 = os.path.join(root, kommune, 'barnehagefakta_familiebarnehager.osm')
             if os.path.exists(filename2):
+                logger.info('Found %s', filename2)
                 yield filename2
             if os.path.exists(filename1):
+                logger.info('Found %s', filename1)
                 yield filename1
                 break
     else:
@@ -51,12 +53,77 @@ def get_kommune_local(kommune):
 def get_kommune(kommune):
     kommune = to_kommunenr(kommune) # now a nicely formatted string e.g. '0213'
     try:
-        get_kommune_local(kommune)
+        return list(get_kommune_local(kommune))
     except BaseException:
-        urllib.request.urlretrieve('http://obtitus.github.io/barnehagefakta_osm_data/data/%s/%s', kommune, 'barnehagefakta.osm')
-        urllib.request.urlretrieve('http://obtitus.github.io/barnehagefakta_osm_data/data/%s/%s', kommune, 'barnehagefakta_familiebarnehager.osm')
-        download
+        # urllib.request.urlretrieve('http://obtitus.github.io/barnehagefakta_osm_data/data/%s/%s', kommune, 'barnehagefakta.osm')
+        # urllib.request.urlretrieve('http://obtitus.github.io/barnehagefakta_osm_data/data/%s/%s', kommune, 'barnehagefakta_familiebarnehager.osm')
+        fixme_download
+
+def score_similarity_strings(nbr_name, overpass_name):
+    """Given two strings, give a score for their similarity
+    100 for match and +10 for each matching word"""
+    # fixme: there are a number of good python tools for looking at similar strings
+    # use one! This will not catch spelling errors.
+    if nbr_name is None or overpass_name is None:
+        return 0
+    if nbr_name == overpass_name:
+        return 100
+    score = 0
+    for word in nbr_name.split():
+        if word in overpass_name:
+            score += 10
         
+    return score
+
+def score(nbr_node, overpass_element, overpass_osm):
+    """Takes the two elements to compare
+    nbr_node, overpass_element
+    and the entire overpass_osm object to look up lat/lon for ways/relations"""
+    nbr_tags = nbr_node.tags
+    overpass_tags = overpass_element.tags
+    score = 0    
+    # how many of the keys overlapp (+1 for each)
+    nbr_keys = set(nbr_tags.keys())
+    overpass_keys = set(overpass_tags.keys())
+    overlapp_keys = nbr_keys.intersection(overpass_keys)
+    score += len(overlapp_keys)*1
+    # do any of the values match (+10 for each)
+    for key in overlapp_keys:
+        if nbr_tags[key] == overpass_tags[key]:
+            score += 10
+    # are the names similar
+    score += score_similarity_strings(nbr_tags.get('name', None), overpass_tags.get('name', None))
+    score += score_similarity_strings(nbr_tags.get('name', None), overpass_tags.get('name:no', None))    
+    # how close is the lat/lon
+    from generate_html import get_lat_lon # fixme, move this piece of code
+    
+    overpass_lat, overpass_lon = get_lat_lon(overpass_osm, overpass_element) # fixme, only returns 1 node
+    nbr_lat, nbr_lon = nbr_node.attribs['lat'], nbr_node.attribs['lon']
+    diff = (overpass_lat - nbr_lat)**2 + (overpass_lon - nbr_lon)**2 # no unit in particular...
+    score += int(diff*1000)     # random weight...
+    
+    return score
+    
+def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
+    output_osm = osmapis.OSMnsrid()
+
+    score_list = dict()
+    for nbr_element in nbr_osm:
+        score_list[nbr_element] = []
+        for overpass_element in overpass_osm:
+            if len(overpass_element.tags) != 0:
+                s = score(nbr_element, overpass_element, overpass_osm=overpass_osm)
+                if s != 0:
+                    score_list[nbr_element].append((s, overpass_element))
+                    
+        print [s[0] for s in score_list[nbr_element]]
+        
+    if len(output_osm) != 0:
+        print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
+        output_osm.save(output_filename)
+    else:
+        print 'Nothing to upload'
+    
 if __name__ == '__main__':
     import argparse_util
     parser = argparse_util.get_parser("""A tool for assisting with the conflation of openstreetmap and NBR data. 
@@ -65,7 +132,7 @@ if __name__ == '__main__':
     you changes will not be visible on openstreetmap!
 
     As a 'working area' you need to supply either a --relation_id or --bounding_box,
-    as an NBR data input, you need to supply either one or more --osm_kommune or --osm_filename.
+    as an NBR data input, you need to supply either a --osm_kommune or --osm_filename.
 """)
     
     group = parser.add_mutually_exclusive_group()
@@ -81,7 +148,7 @@ if __name__ == '__main__':
                         If the correct file can not be found, 
                         it will be downloaded from http://obtitus.github.io/barnehagefakta_osm_data/""")
     
-    parser.add_argument('--osm_filename', nargs="+",
+    parser.add_argument('--osm_filename', nargs="+", default=[],
                         help="""As an alternative to --osm_kommune. 
                         Specify one or more .osm files (assumed to originate from data.udir.no)""")
 
@@ -129,20 +196,21 @@ if __name__ == '__main__':
     query = query.format(variables_query=variables_query,
                          area_query=area_query)
     logger.debug('XML query """%s"""', query)
-    osm = overpass_xml(query, conflate_cache_filename=args.conflate_cache_filename)
-    for key in osm.nsrids:
-        print key, osm.nsrids[key]
+    overpass_osm = overpass_xml(query, conflate_cache_filename=args.conflate_cache_filename)
+    # for key in osm.nsrids:
+    #     print key, osm.nsrids[key]
 
-    print len(osm), osm
+    # print len(osm), osm
 
-    nbr_osms = list()
+    nbr_osms_filenames = args.osm_filename
     if args.osm_kommune:
         for kommune in args.osm_kommune:
-            nbr_osms.append(get_kommune(kommune))
-    if args.osm_filename:
-        for filename in args.osm_filename:
-            xml = file_util.read_file(filename)
-            nbr_osms.append(osmapis.OSMnsrid.from_xml(xml))
+            nbr_osms_filenames.extend(get_kommune(kommune))
+
+    nbr_osms = []
+    for filename in nbr_osms_filenames:
+        xml = file_util.read_file(filename)
+        nbr_osms.append(osmapis.OSMnsrid.from_xml(xml))
 
     if len(nbr_osms) == 0:
         print 'Warning: You need to supply either --osm_kommune and/or --osm_filename, see --help. Exiting...'
@@ -152,4 +220,9 @@ if __name__ == '__main__':
     nbr_osm = osmapis.OSMnsrid()
     for o in nbr_osms:
         for item in o:
-            nbr_osm.add(o)
+            nbr_osm.add(item)
+
+    print 'Saving the combined nbr data as nbr.osm'
+    nbr_osm.save('nbr.osm')
+
+    conflate(nbr_osm, overpass_osm, output_filename='out.osm')
