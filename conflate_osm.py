@@ -126,8 +126,14 @@ def is_perfect_match(dict_a, dict_b):
     # no breaks
     return True
 
+def add_tags(nbr_element, overpass_element):
+    """For all keys in a, add the value to b if missing from b"""
+    for key in nbr_element.tags:
+        if key not in overpass_element.tags:
+            overpass_element.tags[key] = nbr_element.tags[key]
+
 def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
-    output_osm = osmapis.OSMnsrid()
+    #output_osm = osmapis.OSMnsrid()
 
     # score_list = dict()
     # all_scores = list()
@@ -154,7 +160,7 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
 
     counter = len(nbr_elements) # avoid infinite loop counter
     
-    while np.nanmax(score_matrix.flatten()) > quantile and counter != 0:
+    while np.nanmax(score_matrix.flatten()) > quantile and counter > 0:
         # Start with the nbr node with the highest scoring match
         m = np.nanmax(score_matrix, axis=1)
         ix_sort = np.argsort(m)
@@ -181,7 +187,16 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
             print 'Max score: (%s). Is nbr="""\n%s""", the same kindargarten as osm="""\n%s"""?' % (s,
                                                                                                    nbr_element,
                                                                                                    overpass_element)
-            raw_input("")
+            print "enter 'y' to confirm, 'n' or blank to skip to the next one, 'q' to quit"
+            user_input = raw_input("> ")
+            if user_input.lower() == 'y':
+                add_tags(nbr_element, overpass_element)
+                #output_osm.add(overpass_element)
+                break
+                
+            if user_input.lower() == 'q':
+                counter = 0     # hack, break both loops
+                break
             #break
         else: # no breaks
             print 'No likely match found for nbrid=%s' % nbr_element.tags['no-barnehage:nsrid']
@@ -192,11 +207,11 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
             score_matrix[ix, :] = 0
         counter -= 1
     
-    if len(output_osm) != 0:
-        print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
-        output_osm.save(output_filename)
-    else:
-        print 'Nothing to upload'
+    #if len(output_osm) != 0:
+    print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
+    overpass_osm.save(output_filename)
+    # else:
+    #     print 'Nothing to upload'
     
 if __name__ == '__main__':
     import argparse_util
