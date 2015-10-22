@@ -135,9 +135,19 @@ def create_osmtags(udir_tags, operator='', name=''):
     logger.info('%d, Created node %s', nsrId, node)
     return node, udir_tags['type']
 
-def main(lst, output_filename, cache_dir):
-    osm = osmapis.OSM()
-    osm_familiebarnehage = osmapis.OSM()
+def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, save=True):
+    """if osm and osm_familiebarnehage are given, they will be appended to.
+    Ensure save is True to save the files (only needed on the last iteration)"""
+    
+    base, ext = os.path.splitext(output_filename)
+    output_filename_familiebarnehager = base + '_familiebarnehager' + ext
+    
+    if osm is None:
+        osm = osmapis.OSM()
+
+    if osm_familiebarnehage is None:
+        osm_familiebarnehage = osmapis.OSM()
+    
     visited_ids = set()
     for item in lst:
         operator = ''
@@ -167,11 +177,11 @@ def main(lst, output_filename, cache_dir):
             logger.exception('Un-handled exception for nbr_id = %s', nbr_id)
             exit(1)
 
-    if len(osm) != 0:
+    if save and len(osm) != 0:
         osm.save(output_filename)
-    if len(osm_familiebarnehage) != 0:
-        base, ext = os.path.splitext(output_filename)
-        osm_familiebarnehage.save(base + '_familiebarnehager' + ext)
+    if save and len(osm_familiebarnehage) != 0:
+        osm_familiebarnehage.save(output_filename_familiebarnehager)
+    return osm, osm_familiebarnehage
 
 def to_kommunenr(arg):
     """Allow flexible format for kommune-name, by either number or name"""
@@ -221,6 +231,9 @@ Specify either by --nbr_id or by --kommune.''',
         return fh
     fh = add_file_handler()
 
+    output_filename = args.output_filename
+    osm, osm_f = None, None
+    
     if args.kommune:      # list of kommuner given
         if args.kommune == ['ALL']:
             kommunenummer = map(to_kommunenr, nrtonavn.keys())
@@ -237,13 +250,15 @@ Specify either by --nbr_id or by --kommune.''',
                 update_kommune(kommune_id, cache_dir=args.cache_dir)
 
             k = get_kommune(kommune_id, cache_dir=args.cache_dir)
-            
+
             if args.output_filename is None:
                 output_filename = os.path.join(cache_dir, 'barnehagefakta.osm')
-            
-            main(k, output_filename, cache_dir)
+                main(k, output_filename, cache_dir)
+            else:
+                osm, osm_f = main(k, output_filename, cache_dir, osm, osm_f,
+                                  save=kommune_id == kommunenummer[-1]) # hack
+                
     if args.nbr_id:
-        output_filename = args.output_filename
-        if output_filename is None:
+        if args.output_filename is None:
             output_filename = 'barnehagefakta.osm'
         main(args.nbr_id, output_filename, args.cache_dir)
