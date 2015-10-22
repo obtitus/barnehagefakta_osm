@@ -180,6 +180,9 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
         index_template = Template(f.read())
 
     index_table = list()
+    # counters for bottom of main table (what a mess)
+    total_nbr = 0
+    total_osm = 0
     for kommune_nr in os.listdir(data_dir):
         folder = os.path.join(data_dir, kommune_nr)
         if os.path.isdir(folder):
@@ -214,8 +217,11 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                                                                                   title=u"Trykk for å laste ned "+filename,
                                                                                   text=filename)
                     info += u'<p>Familiebarnehager er vanskeligere å kartlegge, disse ligger derfor i sin egen fil: {link}</p>'.format(link=link)
-                    
+
             if len(table) != 0:
+                total_nbr += len(table)
+                total_osm += count_osm
+                
                 per = (100.*count_osm)/len(table)
                 progress = '<meter style="width:100%" value="{value}" min="{min}" max="{max}" optimum="{max}">{per} %</meter>'\
                            .format(value=count_osm,
@@ -231,6 +237,14 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                 with open_utf8(page_filename, 'w') as output:
                     output.write(page)
 
+    # total:
+    per = (100.*total_osm)/total_nbr
+    progress = '<meter style="width:100%" value="{value}" min="{min}" max="{max}" optimum="{max}">{per} %</meter>'\
+               .format(value=total_osm,
+                       min=0, max=total_nbr,
+                       per=per)
+    total = ['Sum', '', total_nbr, total_osm, progress]
+                    
     info = u"""
     <p>Data fra <a href=https://nbr.udir.no>https://nbr.udir.no</a> og <a href=http://openstreetmap.org> openstreetmap.org</a>.
     Kun barnehager med taggen "no-barnehage:nsrid" blir gjenkjent.
@@ -239,10 +253,17 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
     Trykk på en av radene i tabellen under for å vise barnehage-data for kommunen.
     </p>
     """
-    page = index_template.render(info=info, table=index_table)
+    page = index_template.render(info=info, table=index_table, bottom_row=total)
     index = os.path.join(root_output, 'index.html')
     with open_utf8(index, 'w') as output:
         output.write(page)
+
+    # dump progress to csv
+    today = datetime.utcnow()
+    td = (today - datetime(1970, 1, 1))
+    td_s = td.total_seconds()
+    with open('history.csv', 'a') as f:
+        f.write('{0},{1},{2}\n'.format(td_s, total_nbr, total_osm))
 
 def get_osm_data():
     xml = update_osm.overpass_nsrid()
