@@ -7,13 +7,15 @@ import os
 import hashlib
 import logging
 logger = logging.getLogger('barnehagefakta.conflate_osm')
+# Scientific python
+import numpy as np
 
 # This project
 import file_util
 import osmapis_nsrid as osmapis
 from barnehagefakta_osm import to_kommunenr
 
-def overpass_xml(xml, old_age_days=1, conflate_cache_filename=None):
+def overpass_xml(xml, old_age_days=7, conflate_cache_filename=None):
     ''' Query the OverpassAPI with the given xml query, cache result for old_age_days days
     in file conflate_cache_filename (defaults to conflate_cache_<md5(xml)>.osm)
     '''
@@ -93,7 +95,16 @@ def score(nbr_node, overpass_element, overpass_osm):
             score += 10
     # are the names similar
     score += score_similarity_strings(nbr_tags.get('name', None), overpass_tags.get('name', None))
-    score += score_similarity_strings(nbr_tags.get('name', None), overpass_tags.get('name:no', None))    
+    score += score_similarity_strings(nbr_tags.get('name', None), overpass_tags.get('name:no', None))
+    # same nsrid?
+    try:
+        if nbr_tags['no-barnehage:nsrid'] == overpass_tags['no-barnehage:nsrid']:
+            score += 100
+        else:
+            score -= 10
+    except KeyError:
+        pass                    # one or more is missing no-barnehage:nsrid
+        
     # how close is the lat/lon
     from generate_html import get_lat_lon # fixme, move this piece of code
     
@@ -103,21 +114,84 @@ def score(nbr_node, overpass_element, overpass_osm):
     score += int(diff*1000)     # random weight...
     
     return score
-    
+
+def is_perfect_match(dict_a, dict_b):
+    """A perfect match is in this case that all keys in a match those in b"""
+    for key in dict_a:
+        try:
+            if dict_a[key] != dict_b[key]:
+                return False
+        except KeyError:
+            return False
+    # no breaks
+    return True
+
 def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
     output_osm = osmapis.OSMnsrid()
 
-    score_list = dict()
-    for nbr_element in nbr_osm:
-        score_list[nbr_element] = []
-        for overpass_element in overpass_osm:
-            if len(overpass_element.tags) != 0:
-                s = score(nbr_element, overpass_element, overpass_osm=overpass_osm)
-                if s != 0:
-                    score_list[nbr_element].append((s, overpass_element))
-                    
-        print [s[0] for s in score_list[nbr_element]]
-        
+    # score_list = dict()
+    # all_scores = list()
+    nbr_elements = list(nbr_osm)
+    overpass_elements = [o for o in overpass_osm if len(o.tags) != 0] # the overpass elements that actually has tags
+    score_matrix = np.zeros((len(nbr_elements), len(overpass_elements)), dtype=np.int)
+    logger.debug('nbr_elements = %s, %s', len(nbr_elements), nbr_elements)
+    logger.debug('overpass_elements = %s, %s', len(overpass_elements), overpass_elements)
+
+    for ix in xrange(len(nbr_elements)):
+        for jx in xrange(len(overpass_elements)):
+            score_matrix[ix, jx] = score(nbr_elements[ix], overpass_elements[jx],
+                                         overpass_osm=overpass_osm)
+        logger.debug('score for nsrid=%s, max=%s, %s %s',
+                     nbr_elements[ix].tags['no-barnehage:nsrid'],
+                     max(score_matrix[ix, :]),
+                     len(score_matrix[ix, :]),
+                     list(score_matrix[ix, :]))
+
+    non_zero = score_matrix[np.where(score_matrix > 0)] # non-zero and non-negative (flattend)
+    quantile = np.percentile(non_zero, 90)
+    print 'Ignoring anything with a score lower than', quantile
+    score_matrix[np.where(score_matrix < 90)] = 0
+
+    counter = len(nbr_elements) # avoid infinite loop counter
+    
+    while np.nanmax(score_matrix.flatten()) > quantile and counter != 0:
+        # Start with the nbr node with the highest scoring match
+        m = np.nanmax(score_matrix, axis=1)
+        ix_sort = np.argsort(m)
+        ix = ix_sort[-1]
+        nbr_element = nbr_elements[ix]
+        # Go trough all potensial matches, starting with the most likely.
+        jx_sort = list(np.argsort(score_matrix[ix, :]))
+        jx_sort.reverse()
+        for jx in jx_sort:
+            overpass_element = overpass_elements[jx]
+            s = score_matrix[ix, jx]
+            if s == 0:
+                continue
+            
+            if is_perfect_match(nbr_element.tags, overpass_element.tags):
+                print 'Found perfect match between %s and %s, score: (%s) continuing' % (nbr_element, overpass_element, s)
+                break
+
+            head = 'Found possible match for nsrid %s, "%s" == "%s"?' % (nbr_element.tags['no-barnehage:nsrid'],
+                                                                         nbr_element.tags.get('name', None),
+                                                                         overpass_element.tags.get('name', None))
+            print '='*5 + head + '='*5
+                                                                            
+            print 'Max score: (%s). Is nbr="""\n%s""", the same kindargarten as osm="""\n%s"""?' % (s,
+                                                                                                   nbr_element,
+                                                                                                   overpass_element)
+            raw_input("")
+            #break
+        else: # no breaks
+            print 'No likely match found for nbrid=%s' % nbr_element.tags['no-barnehage:nsrid']
+            ix = None
+
+        # Prepare for next loop:
+        if ix is not None:
+            score_matrix[ix, :] = 0
+        counter -= 1
+    
     if len(output_osm) != 0:
         print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
         output_osm.save(output_filename)
