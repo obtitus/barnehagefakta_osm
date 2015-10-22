@@ -217,7 +217,7 @@ Specify either by --nbr_id or by --kommune.''',
     args = parser.parse_args()
 
     logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
     ch = logging.StreamHandler()
     ch.setLevel(args.loglevel)
     ch.setFormatter(formatter)
