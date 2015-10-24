@@ -4,7 +4,7 @@ set -e -v
 # Assumes POI-Importer.github.io has been cloned in current directory
 # git clone git@github.com:POI-Importer/POI-Importer.github.io.git
 # also requires graceful-fs:
-# sudo npm install osmtogeojson
+# sudo npm install graceful-fs
 # and that osmtogeojson has been installed.
 # git clone git@github.com:tyrasd/osmtogeojson.git
 # sudo npm install -g osmtogeojson
