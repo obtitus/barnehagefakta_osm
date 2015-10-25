@@ -2,17 +2,24 @@
 set -e -v
 
 # Assumes POI-Importer.github.io has been cloned in current directory
-# git clone git@github.com:POI-Importer/POI-Importer.github.io.git
-# also requires graceful-fs:
+POI="POI-Importer.github.io"
+OUTPUTDIR=datasets/norge-barnehagefakta
+# git clone --recursive https://github.com/POI-Importer/POI-Importer.github.io.git
+# also requires graceful-fs, mkdirp, rimraf, command-line-args and osmtogeojson
+# cd POI-Importer.github.io.git
 # sudo npm install graceful-fs
-# and that osmtogeojson has been installed.
-# git clone git@github.com:tyrasd/osmtogeojson.git
+# sudo npm install mkdirp
+# sudo npm install rimraf
+# sudo npm install command-line-args
 # sudo npm install -g osmtogeojson
-# osmtogeojson file.osm > file.geojson
 
 # Create a 'large' .osm file with all kindergartens:
-python barnehagefakta_osm.py -q --kommune ALL --output_filename POI-Importer.github.io/all.osm --cache_dir barnehagefakta_osm_data/data/
+python barnehagefakta_osm.py -q --kommune ALL --output_filename $POI/$OUTPUTDIR/norge_barnehagefakta.osm --cache_dir barnehagefakta_osm_data/data/
 # convert to json and tile it
-cd POI-Importer.github.io
-osmtogeojson all.osm > data.json
-node tile_geojson.js
+cd $POI
+osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
+node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
+# cd $OUTPUTDIR
+# git add data/*
+# git commit -am "data update"
+# git push
