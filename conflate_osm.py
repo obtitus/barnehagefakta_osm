@@ -126,14 +126,97 @@ def is_perfect_match(dict_a, dict_b):
     # no breaks
     return True
 
-def add_tags(nbr_element, overpass_element):
+def add_missing_tags(nbr_element, overpass_element):
     """For all keys in a, add the value to b if missing from b"""
+    ret = dict(overpass_element.tags)
     for key in nbr_element.tags:
         if key not in overpass_element.tags:
-            overpass_element.tags[key] = nbr_element.tags[key]
+            logger.debug('Adding tag %s = %s', key, nbr_element.tags[key])
+            ret[key] = nbr_element.tags[key]
+    return ret
+
+def parse_user_input_tag_change(user_input):
+    """ Tries to be as friendly to the user as possible
+    >>> parse_user_input_tag_change('name="corrected name"')
+    ('name', 'corrected name')
+    >>> parse_user_input_tag_change('"name" = "corrected name"')
+    ('name', 'corrected name')
+    >>> parse_user_input_tag_change(' "name" = "corrected name" ')
+    ('name', 'corrected name')
+    >>> parse_user_input_tag_change('name=corrected')
+    ('name', 'corrected')
+    >>> parse_user_input_tag_change('name=corrected name')
+    ('name', 'corrected name')
+    >>> parse_user_input_tag_change('"name"=corrected')
+    ('name', 'corrected')
+    >>> parse_user_input_tag_change('"amenity"="foo"')
+    ('amenity', 'foo')
+    >>> parse_user_input_tag_change('"source"=""')
+    ('source', '')
+    >>> parse_user_input_tag_change('source=')
+    ('source', '')
+    >>> parse_user_input_tag_change('k="name" v="Corrected name"')
+    ('name', 'Corrected name')
+    >>> parse_user_input_tag_change('k="name"  v="Corrected name"')
+    ('name', 'Corrected name')
+    >>> parse_user_input_tag_change('k="name"v="Corrected name"')
+    ('name', 'Corrected name')
+    >>> parse_user_input_tag_change('k=name v="Corrected name"')
+    ('name', 'Corrected name')
+    >>> parse_user_input_tag_change('k=name v=Corrected')
+    ('name', 'Corrected')
+    >>> parse_user_input_tag_change('k=name v=Corrected name')
+    ('name', 'Corrected name')
+    >>> parse_user_input_tag_change("k='name' v='Corrected name'")
+    ('name', 'Corrected name')
+    """
+    user_input = user_input.replace("'", '"') # replace any single quotes with double quotes
+    
+    reg0 = re.search('k="?(\w+)"?\s*v="?([^"]*)"?', user_input)
+    reg1 = re.search('"?(\w+)["\s]*=["\s]*([^"]*)"?', user_input)
+    ret = None
+    if reg0:
+        ret = reg0.group(1), reg0.group(2)
+    elif reg1:
+        ret = reg1.group(1), reg1.group(2)
+    
+    return ret
+
+def add_tags(nbr_element, overpass_element):
+    """For all keys in a, add the value to b if missing from b,
+    then query the user if he wants to make further adjustments
+    INPLACE!"""
+    ret = add_missing_tags(nbr_element, overpass_element)
+    overpass_element.tags = ret
+    print 'Missing tags added, is now """%s"""' % overpass_element
+    print 'would you like to make further adjustments to the tags?'
+    for key in nbr_element.tags:
+        if nbr_element.tags[key] != overpass_element.tags[key]:
+            print 'nbr != osm: "%s"="%s" != "%s"="%s"' % (key, nbr_element.tags[key],
+                                                          key, overpass_element.tags[key])
+    print ('To modify a tag, type e.g. name="Corrected name" '
+           'or k="name" v="Corrected name", '
+           'blank value deletes the tag, press enter to continue.')
+
+    while True:
+        user_input = raw_input('> ')
+        if user_input.strip() in ("", "q"): break
+        
+        ret = parse_user_input_tag_change(user_input)
+        if ret is not None:
+            key, value = ret[0], ret[1]
+            if value in ("", None):
+                print 'Removing k="%s"' % (key)
+                del overpass_element.tags[key]
+            else:
+                print 'Modifying k="%s" v="%s"' % (key, value)
+                overpass_element.tags[key] = value
+                
+        else:
+            print 'Unrecognized input "%s", please try to express yourself more clearly, or fix me' % user_input
 
 def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
-    #output_osm = osmapis.OSMnsrid()
+    #original_osm = osmapis.OSMnsrid.from_xml(overpass_osm.to_xml()) # inconvenient way of getting a copy
 
     # score_list = dict()
     # all_scores = list()
@@ -158,60 +241,77 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
     print 'Ignoring anything with a score lower than', quantile
     score_matrix[np.where(score_matrix < 90)] = 0
 
-    counter = len(nbr_elements) # avoid infinite loop counter
-    
-    while np.nanmax(score_matrix.flatten()) > quantile and counter > 0:
-        # Start with the nbr node with the highest scoring match
-        m = np.nanmax(score_matrix, axis=1)
-        ix_sort = np.argsort(m)
-        ix = ix_sort[-1]
+    modified = list()
+    m = np.nanmax(score_matrix, axis=1)
+    ix_sort = np.argsort(m)
+    for ix in ix_sort[::-1]: # For each nbr node, starting with the higest scoring
         nbr_element = nbr_elements[ix]
+        nbr_element_str = u'nsrid = %s, %s' % (nbr_element.tags['no-barnehage:nsrid'], nbr_element.tags['name'])
+        
         # Go trough all potensial matches, starting with the most likely.
         jx_sort = list(np.argsort(score_matrix[ix, :]))
         jx_sort.reverse()
+        possible_match = list() # build a list of potensial matches
+        found = False
         for jx in jx_sort:
-            overpass_element = overpass_elements[jx]
             s = score_matrix[ix, jx]
-            if s == 0:
-                continue
+            if s < quantile:
+                break
+
+            if is_perfect_match(nbr_elements[ix].tags, overpass_elements[jx].tags):
+                print u'Found perfect match between %s and %s, score: (%s) continuing' % (nbr_elements[ix], overpass_elements[jx], s)
+                found = True
+                break
             
-            if is_perfect_match(nbr_element.tags, overpass_element.tags):
-                print 'Found perfect match between %s and %s, score: (%s) continuing' % (nbr_element, overpass_element, s)
-                break
+            possible_match.append((s, overpass_elements[jx]))
 
-            head = 'Found possible match for nsrid %s, "%s" == "%s"?' % (nbr_element.tags['no-barnehage:nsrid'],
-                                                                         nbr_element.tags.get('name', None),
-                                                                         overpass_element.tags.get('name', None))
-            print '='*5 + head + '='*5
-                                                                            
-            print 'Max score: (%s). Is nbr="""\n%s""", the same kindargarten as osm="""\n%s"""?' % (s,
-                                                                                                   nbr_element,
-                                                                                                   overpass_element)
-            print "enter 'y' to confirm, 'n' or blank to skip to the next one, 'q' to quit"
-            user_input = raw_input("> ")
-            if user_input.lower() == 'y':
-                add_tags(nbr_element, overpass_element)
-                #output_osm.add(overpass_element)
-                break
-                
-            if user_input.lower() == 'q':
-                counter = 0     # hack, break both loops
-                break
-            #break
-        else: # no breaks
-            print 'No likely match found for nbrid=%s' % nbr_element.tags['no-barnehage:nsrid']
-            ix = None
+        logger.debug('possible_match = %s, %s', len(possible_match), possible_match)
+        if found is False and len(possible_match) == 0:
+            print 'No likely match found for %s' % (nbr_element_str)
 
-        # Prepare for next loop:
-        if ix is not None:
-            score_matrix[ix, :] = 0
-        counter -= 1
-    
-    #if len(output_osm) != 0:
-    print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
-    overpass_osm.save(output_filename)
-    # else:
-    #     print 'Nothing to upload'
+        if len(possible_match) == 0:
+            continue
+        elif len(possible_match) == 1:
+            print u'\n{h} Found {num} possible matche for {name} {h}'\
+                .format(h='='*5, num=1, name=nbr_element_str)
+        else:                   # Reduces the list of potensiall matches to 1
+            print u'\n{h} Found {num} possible matches for {name}, please choose [index] {h}'\
+                .format(h='='*5, num=len(possible_match), name=nbr_element_str)
+
+            for ix, (s, overpass_element) in enumerate(possible_match):
+                print u'[index] = [{ix}], score = {score}, tags = {tags}'\
+                    .format(ix=ix, score=s, tags=overpass_element.tags)
+            user_input = raw_input('enter index ("s" to skip): ')
+            if user_input == 's': continue
+            try:
+                possible_match = [possible_match[int(user_input)]] # length 1 list with users-match
+            except:
+                print ('Stupid user, Error, invalid index {ix}, expecting an integer between 0 and {len}'
+                       ', skipping since you are being difficult').format(ix=user_input, len=len(possible_match)-1)
+                continue
+
+        assert len(possible_match) == 1
+        s, possible_match = possible_match[0]
+        print u'Score = {s}, Please confirm match: Is nbr="""\n{nbr}""", the same as "{osm_name}" osm="""\n{osm}"""?'.format(s=s, osm_name=possible_match.tags.get('name'), nbr=nbr_element, osm=possible_match)
+        
+        print "enter 'y' to confirm, 's' or blank to skip to the next one, 'q' to save and quit or ctrl-c to quit"
+        user_input = raw_input('> ')
+        if user_input.lower() == 'y':
+            add_tags(nbr_element, possible_match)
+            possible_match.attribs['action'] = 'modify'            
+            modified.append(possible_match)
+        elif user_input.lower() == 's':
+            continue
+        elif user_input.lower() == 'q':
+            break
+
+    # for element in modified:
+        
+    if len(modified) != 0:
+        print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
+        overpass_osm.save(output_filename)
+    else:
+        print 'No changes made, nothing to upload'
     
 if __name__ == '__main__':
     import argparse_util
