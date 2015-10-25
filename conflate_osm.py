@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
     As a 'working area' you need to supply either a --relation_id or --bounding_box,
     as an NBR data input, you need to supply either a --osm_kommune or --osm_filename.
-""")
+    """, epilog='Example: ./conflate_osm.py --relation_id 406130 --osm_kommune Ski')
     
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--relation_id',
