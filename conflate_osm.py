@@ -199,7 +199,7 @@ def add_tags(nbr_element, overpass_element):
            'blank value deletes the tag, press enter to continue.')
 
     while True:
-        user_input = raw_input('> ')
+        user_input = raw_input('>> ')
         if user_input.strip() in ("", "q"): break
         
         ret = parse_user_input_tag_change(user_input)
@@ -259,7 +259,8 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
                 break
 
             if is_perfect_match(nbr_elements[ix].tags, overpass_elements[jx].tags):
-                print u'Found perfect match between %s and %s, score: (%s) continuing' % (nbr_elements[ix], overpass_elements[jx], s)
+                print 'Found perfect match between {nbr} and {osm}, score: ({s}) continuing'.\
+                    format(nbr=nbr_elements[ix], osm=overpass_elements[jx], s=s)
                 found = True
                 break
             
@@ -272,7 +273,7 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
         if len(possible_match) == 0:
             continue
         elif len(possible_match) == 1:
-            print u'\n{h} Found {num} possible matche for {name} {h}'\
+            print u'\n{h} Found {num} possible match for {name} {h}'\
                 .format(h='='*5, num=1, name=nbr_element_str)
         else:                   # Reduces the list of potensiall matches to 1
             print u'\n{h} Found {num} possible matches for {name}, please choose [index] {h}'\
@@ -292,7 +293,8 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
 
         assert len(possible_match) == 1
         s, possible_match = possible_match[0]
-        print u'Score = {s}, Please confirm match: Is nbr="""\n{nbr}""", the same as "{osm_name}" osm="""\n{osm}"""?'.format(s=s, osm_name=possible_match.tags.get('name'), nbr=nbr_element, osm=possible_match)
+        print 'Score = {s}, Please confirm match: Is nbr="""\n{nbr}""", the same as "{osm_name}" osm="""\n{osm}"""?'\
+            .format(s=s, osm_name=possible_match.tags.get('name').encode('utf-8'), nbr=nbr_element, osm=possible_match)
         
         print "enter 'y' to confirm, 's' or blank to skip to the next one, 'q' to save and quit or ctrl-c to quit"
         user_input = raw_input('> ')
