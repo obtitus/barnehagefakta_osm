@@ -19,7 +19,7 @@ python barnehagefakta_osm.py -q --kommune ALL --output_filename $POI/$OUTPUTDIR/
 cd $POI
 osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
 node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
-# cd $OUTPUTDIR
-# git add data/*
-# git commit -am "data update"
-# git push
+cd $OUTPUTDIR
+git add data/*
+git commit -am "data update"
+git push
