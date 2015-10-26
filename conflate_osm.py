@@ -201,11 +201,15 @@ def add_tags(nbr_element, overpass_element):
         if nbr_element.tags[key] != overpass_element.tags[key]:
             print 'nbr != osm: "%s"="%s" != "%s"="%s"' % (key, nbr_element.tags[key],
                                                           key, overpass_element.tags[key])
-    print ('To modify a tag, type e.g. name="Corrected name" '
-           'or k="name" v="Corrected name", '
-           'blank value deletes the tag, press enter to continue.')
-
+    for key in overpass_element.tags:
+        if key not in nbr_element.tags:
+            print 'not in nbr data: "%s"="%s"' % (key, overpass_element.tags[key])
+        
     while True:
+        print ('To modify a tag, type e.g. name="Corrected name" '
+               'or k="name" v="Corrected name", '
+               'blank value deletes the tag, press enter to continue.')
+
         user_input = raw_input('>> ')
         if user_input.strip() in ("", "q"): break
         
