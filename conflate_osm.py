@@ -169,11 +169,17 @@ def parse_user_input_tag_change(user_input):
     ('name', 'Corrected name')
     >>> parse_user_input_tag_change("k='name' v='Corrected name'")
     ('name', 'Corrected name')
+    >>> parse_user_input_tag_change("k='contact:website' v='http://www.ski.kommune.no/BARNEHAGER/Vestveien/'")
+    ('contact:website', 'http://www.ski.kommune.no/BARNEHAGER/Vestveien/')
+    >>> parse_user_input_tag_change("'contact:website'='http://www.ski.kommune.no/BARNEHAGER/Vestveien/'")
+    ('contact:website', 'http://www.ski.kommune.no/BARNEHAGER/Vestveien/')
+    >>> parse_user_input_tag_change("contact:website=http://www.ski.kommune.no/BARNEHAGER/Vestveien/")
+    ('contact:website', 'http://www.ski.kommune.no/BARNEHAGER/Vestveien/')
     """
     user_input = user_input.replace("'", '"') # replace any single quotes with double quotes
     
-    reg0 = re.search('k="?(\w+)"?\s*v="?([^"]*)"?', user_input)
-    reg1 = re.search('"?(\w+)["\s]*=["\s]*([^"]*)"?', user_input)
+    reg0 = re.search('k="?([\w:-]+)"?\s*v="?([^"]*)"?', user_input)
+    reg1 = re.search('"?([\w:-]+)["\s]*=["\s]*([^"]*)"?', user_input)
     ret = None
     if reg0:
         ret = reg0.group(1), reg0.group(2)
@@ -181,6 +187,7 @@ def parse_user_input_tag_change(user_input):
         ret = reg1.group(1), reg1.group(2)
     
     return ret
+
 
 def add_tags(nbr_element, overpass_element):
     """For all keys in a, add the value to b if missing from b,
@@ -214,6 +221,51 @@ def add_tags(nbr_element, overpass_element):
                 
         else:
             print 'Unrecognized input "%s", please try to express yourself more clearly, or fix me' % user_input
+
+    return user_input
+
+def get_all_referenced(lst, osm, recursion=0):
+    # there is probably a better way to do this
+    assert recursion < 10
+
+    logger.debug('lst = (%s) %s', type(lst), lst)
+    for item in lst:
+        logger.debug('lst = (%s) %s', type(item), item)
+        if isinstance(item, osmapis.Relation):
+            yield item
+            for i in get_all_referenced(item.members, osm, recursion=recursion+1):
+                yield i
+        elif isinstance(item, osmapis.Way):
+            yield item
+            for i in get_all_referenced(item.nds, osm, recursion=recursion+1):
+                yield i
+        elif isinstance(item, osmapis.Node):
+            yield item
+        elif isinstance(item, int):
+            n = osm.nodes[item]
+            assert isinstance(n, osmapis.Node)
+            yield n
+        elif isinstance(item, dict) and 'type' in item:
+            if item['type'] == 'node':
+                n = osm.nodes[item['ref']]
+                assert isinstance(n, osmapis.Node)
+                yield n
+            elif item['type'] == 'way':
+                w = osm.ways[item['ref']]
+                assert isinstance(w, osmapis.Way)
+                yield w
+                for i in get_all_referenced([w], osm, recursion=recursion+1):
+                    yield i
+            elif item['type'] == 'rel':
+                r = osm.relations[item['ref']]
+                assert isinstance(r, osmapis.Relation)
+                yield r
+                for i in get_all_referenced([r], osm, recursion=recursion+1):
+                    yield i
+            else:
+                raise ValueError('%d, Expected type way or node, not %s, %s' % (recursion, type(item), item))
+        else:
+            raise ValueError('%d, Expected node/way/relation, not %s, %s' % (recursion, type(item), item))
 
 def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
     #original_osm = osmapis.OSMnsrid.from_xml(overpass_osm.to_xml()) # inconvenient way of getting a copy
@@ -299,15 +351,26 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
         print "enter 'y' to confirm, 's' or blank to skip to the next one, 'q' to save and quit or ctrl-c to quit"
         user_input = raw_input('> ')
         if user_input.lower() == 'y':
-            add_tags(nbr_element, possible_match)
-            possible_match.attribs['action'] = 'modify'            
+            user_input2 = add_tags(nbr_element, possible_match)
+            possible_match.attribs['action'] = 'modify'
             modified.append(possible_match)
+            
+            if user_input2.lower() == 'q': break
         elif user_input.lower() == 's':
             continue
         elif user_input.lower() == 'q':
             break
 
-    # for element in modified:
+    try:
+        all_modified = list(get_all_referenced(modified, overpass_osm))
+        logger.debug('all_modified=%s',all_modified)
+    except Exception as e:
+        logger.exception('I have a hack to clean up the .osm files by removing un-modified objects, this failed with %s', e)
+        all_modified = overpass_osm
+    
+    for elem in overpass_osm:
+        if not(elem) in all_modified:
+            overpass_osm.discard(elem)
         
     if len(modified) != 0:
         print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
