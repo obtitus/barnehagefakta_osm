@@ -184,6 +184,8 @@ if __name__ == '__main__':
     parser = argparse_util.get_parser('Keeps OSM objects with no-barnehage:nsrid=* updated if there are changes in the NBR data. Does not overwrite modified OSM data.')
     parser.add_argument('--data_dir', default='data',
                         help='Specify directory for .osm files, defaults to data/')
+    parser.add_argument('--batch', default=False, action='store_true',
+                        help='Do not promt for user input (will not update OSM, run without --batch to clear all conflicts)')
     argparse_util.add_verbosity(parser, default=logging.WARNING)
 
     args = parser.parse_args()
@@ -221,7 +223,7 @@ if __name__ == '__main__':
             osm_element = osm_elements[0]
             logger.info('resolve_conflict(osm_element=%s %s, ...)', type(osm_element), osm_element.tags)
             resolved = resolve_conflict(osm_element, osm_outdated, osm_updated)
-            if resolved == 'update':
+            if resolved == 'update' and args.batch is False:
                 resolved = update_osm(original=osm_original,
                                       modified=osm,
                                       comment=changeset_comment)
