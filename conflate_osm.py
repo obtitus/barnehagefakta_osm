@@ -4,6 +4,7 @@
 # Standard python imports
 import re
 import os
+import urllib2
 import hashlib
 import logging
 logger = logging.getLogger('barnehagefakta.conflate_osm')
@@ -52,22 +53,32 @@ def get_kommune_local(kommune):
     else:
         raise BaseException("Could not find barnehagefakta.osm")
 
+def download(root_url, directory, filename):
+    url = os.path.join(root_url, directory, filename) # should probably use some html join, but I know the input...
+    filename = os.path.join(directory, filename)
+    response = urllib2.urlopen(url)
+    content = response.read()
+    file_util.write_file(filename, content)
+    return filename
+
 def get_kommune(kommune):
     kommune = to_kommunenr(kommune) # now a nicely formatted string e.g. '0213'
     try:
         return list(get_kommune_local(kommune))
     except BaseException:
-        # urllib.request.urlretrieve('http://obtitus.github.io/barnehagefakta_osm_data/data/%s/%s', kommune, 'barnehagefakta.osm')
-        # urllib.request.urlretrieve('http://obtitus.github.io/barnehagefakta_osm_data/data/%s/%s', kommune, 'barnehagefakta_familiebarnehager.osm')
-        fixme_download
+        f1 = download('http://obtitus.github.io/barnehagefakta_osm_data/data', kommune, 'barnehagefakta.osm')
+        f2 = download('http://obtitus.github.io/barnehagefakta_osm_data/data', kommune, 'barnehagefakta_familiebarnehager.osm')
+        return [f1, f2]
 
 def score_similarity_strings(nbr_name, overpass_name):
     """Given two strings, give a score for their similarity
-    100 for match and +10 for each matching word"""
+    100 for match and +10 for each matching word. Case-insensitive"""
     # fixme: there are a number of good python tools for looking at similar strings
     # use one! This will not catch spelling errors.
     if nbr_name is None or overpass_name is None:
         return 0
+
+    nbr_name, overpass_name = nbr_name.lower(), overpass_name.lower()
     if nbr_name == overpass_name:
         return 100
     score = 0
