@@ -15,8 +15,26 @@ request_session = gentle_requests.GentleRequests()
 import file_util
 #
 # Main
-# 
-def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data', keep_history=True):
+#
+
+def equal_json_responses(res1, res2, ignore=('id', 'indikatorDataKommune')):
+    """Equivalent to res1 != res2 except that keys in 'ignore' are not compared,
+    assumes equal number of keys, else returns False"""
+    try:
+        dct1 = json.loads(res1)
+        dct2 = json.loads(res2)
+        if len(dct1) != len(dct2): return False
+        for key in dct1:
+            if key not in dct2: return False
+            if key not in ignore and dct1[key] != dct2[key]:
+                return False
+
+        logger.info('Ignoring %s, no missmatch was found', ignore)
+        return True
+    except:
+        return False
+        
+def barnehagefakta_get_json(nbr_id, old_age_days=20, cache_dir='data', keep_history=True):
     """Returns json string for the given nbr_id, caches result to file in directory cache_dir. 
     If the cached result is older than old_age_days a new version is fetched.
     By default (if keep_history is True) changes in the response will detected 
@@ -54,7 +72,7 @@ def barnehagefakta_get_json(nbr_id, old_age_days=30, cache_dir='data', keep_hist
         ret = '404'
         
     if ret is not None:
-        if keep_history and cached is not None and ret != cached: # avoid overriding previous cache
+        if keep_history and cached is not None and not(equal_json_responses(ret, cached)): # avoid overriding previous cache
             d = datetime.utcnow()
             # note: the date will represent the date we discovered this to be outdated
             # which is not all that logical, but we just need a unique filename (assuming old_age_days > 1).
@@ -84,7 +102,7 @@ def barnehagefakta_get(nbr_id, *args, **kwargs):
 if __name__ == '__main__':
     import argparse_util
     parser = argparse_util.get_parser('Helper script for requesting (with local cache) and parsing json data from "Utdanningdsdirektoratet Nasjonalt barnehageregister (NBR)"')
-    parser.add_argument('nbr_id', nargs='?', help='Unique NBR-id(s) to download (e.g. 1015988).')
+    parser.add_argument('nbr_id', nargs='+', help='Unique NBR-id(s) to download (e.g. 1015988).')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
     argparse_util.add_verbosity(parser, default=logging.DEBUG)
@@ -95,5 +113,6 @@ if __name__ == '__main__':
 
     if args.nbr_id:             # list of ids given
         for nbr_id in args.nbr_id:
+            print 'Getting', nbr_id
             barnehagefakta_get(nbr_id, cache_dir=args.cache_dir)
 
