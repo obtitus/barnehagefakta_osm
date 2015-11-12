@@ -112,7 +112,7 @@ def create_osmtags(udir_tags, operator='', name=''):
             logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", nsrId, udir_tags['opprettetDato'], e)
             
     if name != '':
-        assert name == udir_tags['navn'] # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
+        assert name == udir_tags['navn'], 'name="%s", udir_tags["navn"]="%s"' % (name, udir_tags['navn']) # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
         
     osm_tags = {'amenity': 'kindergarten',
                 'name': udir_tags['navn'],
@@ -174,8 +174,8 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, s
             else:
                 osm.add(node)
         except:
-            logger.exception('Un-handled exception for nbr_id = %s', nbr_id)
-            exit(1)
+            logger.exception('Un-handled exception for nbr_id = %s, skipping', nbr_id)
+            return osm, osm_familiebarnehage
 
     if save and len(osm) != 0:
         osm.save(output_filename)

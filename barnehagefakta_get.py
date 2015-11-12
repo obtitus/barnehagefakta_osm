@@ -32,7 +32,7 @@ def equal_json_responses(res1, res2, ignore=('id', 'indikatorDataKommune')):
         logger.info('Ignoring %s, no missmatch was found', ignore)
         return True
     except:
-        return False
+        return res1 != res2
         
 def barnehagefakta_get_json(nbr_id, old_age_days=20, cache_dir='data', keep_history=True):
     """Returns json string for the given nbr_id, caches result to file in directory cache_dir. 
