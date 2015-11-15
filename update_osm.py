@@ -198,6 +198,11 @@ if __name__ == '__main__':
         logger.info('%s: outdated = "%s", updated = "%s"', nbr_id, filename_outdated, filename_updated)
         outdated = json.load(open(filename_outdated))
         updated = json.load(open(filename_updated))
+        if outdated == 404:
+            logger.info('nbrid = %s was 404, removing', nbr_id)
+            os.remove(filename_outdated)
+            continue
+        
         osm_outdated, _ = create_osmtags(outdated)
         osm_updated, _ = create_osmtags(updated)
 
