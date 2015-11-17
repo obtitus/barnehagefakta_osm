@@ -7,7 +7,16 @@ For information about the import, go to http://wiki.openstreetmap.org/wiki/Key:n
 
 To view/download the output, go to http://obtitus.github.io/barnehagefakta_osm_data/
 
+![](image_all_kindergartens_norway.png)
+
 ## Overview of files
+* `conflate_osm.py` is an interactive utility to aid in conflation. It uses the overpass api to
+search for kindergarten looking objects (see `query_template.xml`) in the designated area, which is
+compared to the data.udir kindergartens in the designated municipality.
+A score is generated for each object and possible matches presented to
+the user for decision and corrections. See --help for specifying the
+OSM area and data.udir dataset. The output is an .osm file which can be reviewed in JOSM and uploaded.
+
 * `barnehagefakta_get.py` is intended to be a general script for downloading
   (with a local cache) json files from http://barnehagefakta.no/api/barnehage/<nsrid>.
 
@@ -24,13 +33,6 @@ To view/download the output, go to http://obtitus.github.io/barnehagefakta_osm_d
 
 * `generate_html.py` is used for generating http://obtitus.github.io/barnehagefakta_osm_data/
   (and is the script in the most need of a re-write)
-
-* `conflate_osm.py` is an interactive utility to aid in conflation. It uses the overpass api to
-search for kindergarten looking objects (see `query_template.xml`) in the designated area, which is
-compared to the data.udir kindergartens in the designated municipality.
-A score is generated for each object and possible matches presented to
-the user for decision and corrections. See --help for specifying the
-OSM area and data.udir dataset. The output is an .osm file which can be reviewed in JOSM and uploaded.
 
 ## Dependencies
 * osmapis from https://github.com/xificurk/osmapis
