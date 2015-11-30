@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e -v
 
+python=/opt/local/bin/python2.7
+osmtogeojson=/opt/local/bin/osmtogeojson
+node=/opt/local/bin/node
+git=/usr/bin/git
 # Assumes POI-Importer.github.io has been cloned in current directory
 POI="POI-Importer.github.io"
 OUTPUTDIR=datasets/norge-barnehagefakta
@@ -14,12 +18,12 @@ OUTPUTDIR=datasets/norge-barnehagefakta
 # sudo npm install -g osmtogeojson
 
 # Create a 'large' .osm file with all kindergartens:
-python barnehagefakta_osm.py -q --kommune ALL --output_filename $POI/$OUTPUTDIR/norge_barnehagefakta.osm --cache_dir barnehagefakta_osm_data/data/
+$python barnehagefakta_osm.py -q --kommune ALL --output_filename $POI/$OUTPUTDIR/norge_barnehagefakta.osm --cache_dir barnehagefakta_osm_data/data/
 # convert to json and tile it
 cd $POI
-osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
-node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
+$osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
+$node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
 cd $OUTPUTDIR
-git add data/*
-git commit -am "data update"
-git push
+$git add data/*
+$git commit -am "data update"
+$git push
