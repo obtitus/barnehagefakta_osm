@@ -31,6 +31,17 @@ def get_osm_files(folder):
             
             yield filename, data
 
+def not_empty_file(filename):
+    """Return True if file does exist and is not empty"""
+    #if os.path.exists(filename):
+    try:
+        with open(filename, 'r') as f:
+            c = f.read()
+            if c.strip() != '':
+                return True
+    except Exception as e:
+        logger.warning('file does not exists "%s", %s', filename, e)
+    return False
 def get_lat_lon(osm, osm_data):
     way = None
     node = None
@@ -187,6 +198,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
         folder = os.path.join(data_dir, kommune_nr)
         if os.path.isdir(folder):
             page_filename = os.path.join(root_output, kommune_nr + '.html')
+            warning_filename = os.path.join(root_output, 'data', kommune_nr, 'warnings.log')
             last_update_stamp = os.path.getmtime(folder)
             last_update_datetime = datetime.fromtimestamp(last_update_stamp)
             last_update = last_update_datetime.strftime('%Y-%m-%d %H:%M')
@@ -198,6 +210,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
             
             table = list()
             info = ''
+            info_warning = ''
             count_osm = 0
             count_duplicate_osm = 0
             for filename, data in get_osm_files(folder):
@@ -218,6 +231,13 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                                                                                   text=filename)
                     info += u'<p>Familiebarnehager er vanskeligere å kartlegge, disse ligger derfor i sin egen fil: {link}</p>'.format(link=link)
 
+
+            if not_empty_file(warning_filename):
+                link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=warning_filename,
+                                                                                title=u"Sjekk warnings.log",
+                                                                                text='warnings.log')
+                info_warning += u'<p>Sjekk gjerne {0}</p>'.format(link)
+                
             if len(table) != 0:
                 total_nbr += len(table)
                 total_osm += count_osm
@@ -232,11 +252,13 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                 page = template.render(kommune_name=kommune_name,
                                        kommune_nr=kommune_nr,
                                        table=table, info=info,
+                                       info_warning=info_warning,
                                        last_update=last_update)
                 # Kommune-folder
                 with open_utf8(page_filename, 'w') as output:
                     output.write(page)
-
+                
+                    
     # total:
     per = (100.*total_osm)/total_nbr
     progress = '<meter style="width:100%" value="{value}" min="{min}" max="{max}" optimum="{max}">{per} %</meter>'\

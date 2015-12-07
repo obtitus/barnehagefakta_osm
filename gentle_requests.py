@@ -9,7 +9,7 @@ class GentleRequests(requests.Session):
     """Wrapper around the requests library that inserts a delay to avoid
     excessive load on the server.
     NOTE: currently only wraps get() calls."""
-    def __init__(self, N_delay=10, delay_seconds=60):
+    def __init__(self, N_delay=10, delay_seconds=30):
         """For every N_delay requests, delay by delay_seconds"""
         self.N_delay = N_delay
         self.delay_seconds = delay_seconds

@@ -21,7 +21,7 @@ OUTPUTDIR=datasets/norge-barnehagefakta
 $python barnehagefakta_osm.py -q --kommune ALL --output_filename $POI/$OUTPUTDIR/norge_barnehagefakta.osm --cache_dir barnehagefakta_osm_data/data/
 # convert to json and tile it
 cd $POI
-$osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
+$node $osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
 $node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
 cd $OUTPUTDIR
 $git add data/*

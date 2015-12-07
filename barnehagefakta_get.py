@@ -70,6 +70,8 @@ def barnehagefakta_get_json(nbr_id, old_age_days=20, cache_dir='data', keep_hist
         ret = r.content
     elif r.status_code == 404:
         ret = '404'
+    else:
+        logger.error('Unknown status code %s', r.status_code)
         
     if ret is not None:
         if keep_history and cached is not None and not(equal_json_responses(ret, cached)): # avoid overriding previous cache
@@ -84,6 +86,9 @@ def barnehagefakta_get_json(nbr_id, old_age_days=20, cache_dir='data', keep_hist
     
     return ret
 
+class NotFoundException(Exception):
+    pass
+
 def barnehagefakta_get(nbr_id, *args, **kwargs):
     """Returns dictionary with data for the given nbr_id. 
     Additonal arguments are passed to barnehagefakta_get_json"""
@@ -91,8 +96,8 @@ def barnehagefakta_get(nbr_id, *args, **kwargs):
     if j is None:
         return {}
     elif j == '404':
-        logger.warning('nbr_id=%s returned 404', nbr_id)
-        return {}
+        raise NotFoundException('nbr_id={0} returned 404'.format(nbr_id))
+    #return {}
     
     dct = json.loads(j)
     if logger.isEnabledFor(logging.DEBUG):

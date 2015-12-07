@@ -10,7 +10,7 @@ logger = logging.getLogger('barnehagefakta')
 # Non standard
 import osmapis
 # This project:
-from barnehagefakta_get import barnehagefakta_get
+from barnehagefakta_get import barnehagefakta_get, NotFoundException
 from barnehageregister_nbrId import get_kommune, update_kommune
 from kommunenummer import nrtonavn, navntonr
 import file_util
@@ -112,7 +112,12 @@ def create_osmtags(udir_tags, operator='', name=''):
             logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", nsrId, udir_tags['opprettetDato'], e)
             
     if name != '':
-        assert name == udir_tags['navn'], 'name="%s", udir_tags["navn"]="%s"' % (name, udir_tags['navn']) # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
+        #assert name == udir_tags['navn'], 'name="%s", udir_tags["navn"]="%s"' % (name, udir_tags['navn']) # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
+        if name != udir_tags['navn']:
+            logger.warning(('The name from https://nbr.udir.no/enhet/{id} '
+                            'differ from http://barnehagefakta.no/api/barnehage/{id},'
+                            '"{nbr}" != "{barnehagefakta}"').format(
+                                id=nsrId, barnehagefakta=udir_tags['navn'].encode('utf8'), nbr=name.encode('utf8')))
         
     osm_tags = {'amenity': 'kindergarten',
                 'name': udir_tags['navn'],
@@ -173,6 +178,11 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, s
                 osm_familiebarnehage.add(node)
             else:
                 osm.add(node)
+        except NotFoundException as e:
+            logger.warning(('Kindergarten "{name}" https://nbr.udir.no/enhet/{id}'
+                            ', returned 404 at http://barnehagefakta.no/api/barnehage/{id}. '
+                            'The kindergarten is probably discontinued.').format(
+                                name=name.encode('utf8'), id=nbr_id))
         except:
             logger.exception('Un-handled exception for nbr_id = %s, skipping', nbr_id)
             return osm, osm_familiebarnehage

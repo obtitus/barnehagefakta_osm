@@ -7,7 +7,7 @@ import os
 import re
 import json
 import logging
-logger = logging.getLogger('barnehagefakta.nbrId')
+logger = logging.getLogger('barnehagefakta.barnehageregister_nbrId')
 # non-standard imports
 import requests
 # request_session = requests.session()
@@ -66,7 +66,7 @@ def get_raw(table):
         link, name = row.h2.a['href'], row.h2.a.text
         reg = re.match('/enhet/(eier/)?(\d+)', link)
         if reg.group(1) is not None:
-            logger.warning('We got a "eier" when requesting Eiere=false, skipping')
+            logger.warning('%s We got a "eier" when requesting Eiere=false, skipping', link)
             continue
         nbrId = reg.group(2)
         logger.info('Name = "%s" (%s)', name, nbrId)
