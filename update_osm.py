@@ -190,7 +190,20 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    logging.basicConfig(level=args.loglevel)
+    #logging.basicConfig(level=args.loglevel)
+    main_logger = logging.getLogger('barnehagefakta')
+    main_logger.setLevel(logging.DEBUG)
+    # create console handler with a custom log level
+    ch = logging.StreamHandler()
+    ch.setLevel(args.loglevel)
+    main_logger.addHandler(ch)
+    
+    # create file handler which logs even debug messages
+    fh = logging.FileHandler('update_osm.log')
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    main_logger.addHandler(fh)
 
     changeset_comment = 'Auto updated by barnehagefakta_osm.py. The barnehagefakta.no data has been modified and the openstreetmap data corresponds to the previous value from barnehagefakta.no, an automatic update is therefore done.'
     root = 'data'
@@ -241,3 +254,5 @@ if __name__ == '__main__':
             for ix, e in enumerate(osm_elements):
                 print 'DUPLICATE %d: %s\n"%s"' % (ix, e.tags, e)
             exit(1)
+
+    logger.info('Done')
