@@ -186,6 +186,8 @@ if __name__ == '__main__':
                         help='Specify directory for .osm files, defaults to data/')
     parser.add_argument('--batch', default=False, action='store_true',
                         help='Do not promt for user input (will not update OSM, run without --batch to clear all conflicts)')
+    parser.add_argument('--log_filename', default='update_osm.log',
+                         help='log file for all logging levels, defaults to update_osm.log.')
     argparse_util.add_verbosity(parser, default=logging.WARNING)
 
     args = parser.parse_args()
@@ -199,7 +201,7 @@ if __name__ == '__main__':
     main_logger.addHandler(ch)
     
     # create file handler which logs even debug messages
-    fh = logging.FileHandler('update_osm.log')
+    fh = logging.FileHandler(args.log_filename)
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)

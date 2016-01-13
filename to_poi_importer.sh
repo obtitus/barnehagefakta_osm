@@ -24,6 +24,6 @@ cd $POI
 $node $osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
 $node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
 cd $OUTPUTDIR
-$git add data/*
+$git add -A data/
 $git commit -am "data update" || true
 $git push || true
