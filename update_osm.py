@@ -200,7 +200,7 @@ if __name__ == '__main__':
     ch.setLevel(args.loglevel)
     main_logger.addHandler(ch)
     
-    # create file handler which logs even debug messages
+    # create file handler which logs even info messages
     fh = logging.FileHandler(args.log_filename)
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -209,11 +209,22 @@ if __name__ == '__main__':
 
     changeset_comment = 'Auto updated by barnehagefakta_osm.py. The barnehagefakta.no data has been modified and the openstreetmap data corresponds to the previous value from barnehagefakta.no, an automatic update is therefore done.'
     root = 'data'
+
+    # Summary counters
+    N_outdated = 0              # total
+    N_404 = 0                   # was 404
+    N_no_relevant_tags = 0      # no osm relevant tags have changed
+    N_not_added = 0             # not added to osm
+    N_need_update = 0
+    N_resolved = 0
+    N_unresolved = 0
     for filename_outdated, filename_updated, nbr_id in find_outdated(root):
+        N_outdated += 1
         logger.info('%s: outdated = "%s", updated = "%s"', nbr_id, filename_outdated, filename_updated)
         outdated = json.load(open(filename_outdated))
         updated = json.load(open(filename_updated))
         if outdated == 404:
+            N_404 += 1
             logger.info('nbrid = %s was 404, removing', nbr_id)
             os.remove(filename_outdated)
             continue
@@ -222,6 +233,7 @@ if __name__ == '__main__':
         osm_updated, _ = create_osmtags(updated)
 
         if osm_outdated.tags == osm_updated.tags: # none of the tags that we care about has changed
+            N_no_relevant_tags += 1
             logger.info('nbrid = %s no relevant tags changed, removing', nbr_id) # fixme: check for lat/lon changes...
             os.remove(filename_outdated)
             continue
@@ -237,18 +249,26 @@ if __name__ == '__main__':
         osm_elements = osm.nsrids.get(nbr_id, [])
         #osm_elements = list(find_all_nsrid_osm_elements(osm, nsrid=nbr_id))
         if len(osm_elements) == 0:
+            N_not_added += 1
             logger.info('nbrid = %s has not been added to osm, removing the OUTDATED file', nbr_id)
             os.remove(filename_outdated)
         elif len(osm_elements) == 1:
             osm_element = osm_elements[0]
             logger.info('resolve_conflict(osm_element=%s %s, ...)', type(osm_element), osm_element.tags)
             resolved = resolve_conflict(osm_element, osm_outdated, osm_updated)
-            if resolved == 'update' and args.batch is False:
-                resolved = update_osm(original=osm_original,
-                                      modified=osm,
-                                      comment=changeset_comment)
-                
+            if resolved == False:
+                N_unresolved += 1
+            elif resolved == 'update':
+                if args.batch is False:
+                    resolved = update_osm(original=osm_original,
+                                          modified=osm,
+                                          comment=changeset_comment)
+                else:
+                    logger.warning('Run without --batch to update osm')
+                    N_need_update += 1
+
             if resolved:
+                N_resolved += 1
                 logger.info('nbrid = %s has been resolved, removing the OUTDATED file', nbr_id)
                 os.remove(filename_outdated)
         else:
@@ -257,4 +277,19 @@ if __name__ == '__main__':
                 print 'DUPLICATE %d: %s\n"%s"' % (ix, e.tags, e)
             exit(1)
 
-    logger.info('Done')
+    # Summary
+    resolved = N_404 + N_no_relevant_tags + N_not_added + N_resolved
+    summary = ''
+    if N_404 != 0:
+        summary += '%s was 404, ' % N_404
+    if N_no_relevant_tags != 0:
+        summary += '%s non-relevant tag changes, ' % N_no_relevant_tags
+    if N_not_added != 0:
+        summary += '%s not added to OSM' % N_not_added
+    if N_resolved != 0:
+        summary += '%s was resolved.' % N_resolved
+    if N_need_update != 0:
+        summary += '%s need to run without --batch' % N_need_update
+    if N_unresolved != 0:
+        summary += '%s need manual fixing' % N_unresolved
+    logger.info('Done. %s outdated, Resolved: %s/%s. %s', N_outdated, N_outdated, resolved, summary)
