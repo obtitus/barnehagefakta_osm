@@ -306,7 +306,7 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
     non_zero = score_matrix[np.where(score_matrix > 0)] # non-zero and non-negative (flattend)
     quantile = np.percentile(non_zero, 90)
     print 'Ignoring anything with a score lower than', quantile
-    score_matrix[np.where(score_matrix < 90)] = 0
+    score_matrix[np.where(score_matrix < quantile)] = 0
 
     modified = list()
     m = np.nanmax(score_matrix, axis=1)
