@@ -193,6 +193,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     #logging.basicConfig(level=args.loglevel)
+    # logger_adapter_dict = dict(nbr_id=None)
+    # main_logger = logging.LoggerAdapter(main_logger, logger_adapter_dict)    
+    
     main_logger = logging.getLogger('barnehagefakta')
     main_logger.setLevel(logging.DEBUG)
     # create console handler with a custom log level
@@ -210,6 +213,7 @@ if __name__ == '__main__':
     changeset_comment = 'Auto updated by barnehagefakta_osm.py. The barnehagefakta.no data has been modified and the openstreetmap data corresponds to the previous value from barnehagefakta.no, an automatic update is therefore done.'
     root = 'data'
 
+
     # Summary counters
     N_outdated = 0              # total
     N_404 = 0                   # was 404
@@ -219,6 +223,7 @@ if __name__ == '__main__':
     N_resolved = 0
     N_unresolved = 0
     for filename_outdated, filename_updated, nbr_id in find_outdated(root):
+        #logger_adapter_dict['nbr_id'] = nbr_id
         N_outdated += 1
         logger.info('%s: outdated = "%s", updated = "%s"', nbr_id, filename_outdated, filename_updated)
         outdated = json.load(open(filename_outdated))
@@ -285,11 +290,11 @@ if __name__ == '__main__':
     if N_no_relevant_tags != 0:
         summary += '%s non-relevant tag changes, ' % N_no_relevant_tags
     if N_not_added != 0:
-        summary += '%s not added to OSM' % N_not_added
+        summary += '%s not added to OSM ' % N_not_added
     if N_resolved != 0:
-        summary += '%s was resolved.' % N_resolved
+        summary += '%s was resolved. ' % N_resolved
     if N_need_update != 0:
-        summary += '%s need to run without --batch' % N_need_update
+        summary += '%s need to run without --batch ' % N_need_update
     if N_unresolved != 0:
-        summary += '%s need manual fixing' % N_unresolved
+        summary += '%s need manual fixing ' % N_unresolved
     logger.info('Done. %s outdated, Resolved: %s/%s. %s', N_outdated, N_outdated, resolved, summary)
