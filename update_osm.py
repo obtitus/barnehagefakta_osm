@@ -272,7 +272,7 @@ if __name__ == '__main__':
                     logger.warning('Run without --batch to update osm')
                     N_need_update += 1
 
-            if resolved:
+            if resolved == True:
                 N_resolved += 1
                 logger.info('nbrid = %s has been resolved, removing the OUTDATED file', nbr_id)
                 os.remove(filename_outdated)
@@ -297,4 +297,4 @@ if __name__ == '__main__':
         summary += '%s need to run without --batch ' % N_need_update
     if N_unresolved != 0:
         summary += '%s need manual fixing ' % N_unresolved
-    logger.info('Done. %s outdated, Resolved: %s/%s. %s', N_outdated, N_outdated, resolved, summary)
+    logger.info('Done. %s outdated, Resolved: %s/%s. %s', N_outdated, resolved, N_outdated, summary)

@@ -15,6 +15,6 @@ def add_verbosity(parser, default=logging.DEBUG):
                         action="store_const", dest="loglevel", const=logging.INFO)
     parser.add_argument('-q', '--quiet', help="Suppress non-warning messages.",
                         action="store_const", dest="loglevel", const=logging.WARNING)
-    parser.add_argument('-', '--silent', help="Suppress non-error messages.",
+    parser.add_argument('-s', '--silent', help="Suppress non-error messages.",
                         action="store_const", dest="loglevel", const=logging.ERROR)
     
