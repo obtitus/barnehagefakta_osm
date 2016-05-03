@@ -61,10 +61,11 @@ def get_lat_lon(osm, osm_data):
     lat, lon = node.attribs['lat'], node.attribs['lon']
     return lat, lon
 
-def create_pre(dict1, dict_compare):
+def create_pre(dict1, dict_compare, mark_missing_key=True):
     tags = '<pre>'
     for key, value in sorted(dict1.items()):
-        diff_value = key in dict_compare and dict_compare[key] != dict1[key]
+        missing_key = key not in dict_compare
+        diff_value = not(missing_key) and dict_compare[key] != dict1[key]
         if diff_value:
             a, b = dict_compare[key], dict1[key]
             value = my_htmldiff(a, b)
@@ -72,6 +73,10 @@ def create_pre(dict1, dict_compare):
         line = '%s = %s\n' % (key, value)
         if diff_value:
             line = '<diff_value>%s</diff_value>' % line
+
+        if mark_missing_key and missing_key:
+            line = '<missing_key>%s</missing_key>' % line
+            
         tags += line
     tags += '</pre>'
     return tags
@@ -109,7 +114,7 @@ def create_rows(osm, data):
             assert len(osm_data) == 1
             osm_data = osm_data[0]
             osm_data_tags = osm_data.tags
-            tags = create_pre(osm_data.tags, kindergarten.tags)
+            tags = create_pre(osm_data.tags, kindergarten.tags, mark_missing_key=False)
 
             if isinstance(osm_data, osmapis.Node):
                 osm_type_str = 'node'
@@ -136,7 +141,9 @@ def create_rows(osm, data):
 
 
         # Tags from nbr
-        tags_nbr = create_pre(kindergarten.tags, osm_data_tags)
+        mark_missing_key = True
+        if len(osm_data_tags) == 0: mark_missing_key=False # do not mark the 'not found'
+        tags_nbr = create_pre(kindergarten.tags, osm_data_tags, mark_missing_key=mark_missing_key)
         row.append(tags_nbr)
                 
         row.append(tags)
