@@ -51,4 +51,6 @@ OSM area and data.udir dataset. The output is an .osm file which can be reviewed
 
   `pip install jinja2`
 
+* htmldiff (https://github.com/induane/htmldiff/blob/master/src/htmldiff/htmldiff.py) required by `generate_html.py`
+
 * numpy (http://www.numpy.org) required by `conflate_osm.py` as I am too lazy to do the score matrix in pure python.

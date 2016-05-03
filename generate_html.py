@@ -17,6 +17,12 @@ import update_osm
 import osmapis_nsrid as osmapis
 import kommunenummer
 
+from htmldiff import htmldiff
+def my_htmldiff(a, b):
+    d = htmldiff.HTMLMatcher(a.encode('utf8'), b.encode('utf8'),
+                             accurate_mode=True)
+    return d.htmlDiff(addStylesheet=False).decode('utf8')
+
 link_template = u'<a href="{href}"\ntitle="{title}">{text}</a>'
 # base_url = 'http://obtitus.github.io/barnehagefakta_osm_data/'
 # base_url = ''
@@ -65,6 +71,21 @@ def get_lat_lon(osm, osm_data):
     lat, lon = node.attribs['lat'], node.attribs['lon']
     return lat, lon
 
+def create_pre(dict1, dict_compare):
+    tags = '<pre>'
+    for key, value in sorted(dict1.items()):
+        diff_value = key in dict_compare and dict_compare[key] != dict1[key]
+        if diff_value:
+            a, b = dict_compare[key], dict1[key]
+            value = my_htmldiff(a, b)
+
+        line = '%s = %s\n' % (key, value)
+        if diff_value:
+            line = '<diff_value>%s</diff_value>' % line
+        tags += line
+    tags += '</pre>'
+    return tags
+
 def create_rows(osm, data):
     table = list()
     count_osm = 0
@@ -77,12 +98,6 @@ def create_rows(osm, data):
         row = list()
         # Name
         row.append(kindergarten.tags['name'])
-        # Tags from nbr
-        tags = '<pre>'
-        for key, value in sorted(kindergarten.tags.items()):
-            tags += '%s = %s\n' % (key, value)
-        tags += '</pre>'
-        row.append(tags)
 
         # Tags from OSM
         osm_data = []
@@ -92,6 +107,7 @@ def create_rows(osm, data):
         tags = ''
         osm_url = None        
         osm_url_api = None
+        osm_data_tags = {}
         # osm_xml = None        
         if len(osm_data) == 0:
             tags = 'Fant ingen openstreetmap objekt med no-barnehage:nsrid = %s' % nsrId
@@ -102,12 +118,8 @@ def create_rows(osm, data):
             count_osm += 1
             assert len(osm_data) == 1
             osm_data = osm_data[0]
-            tags = '<pre>'
-            for key, value in sorted(osm_data.tags.items()):
-                tags += '%s = %s\n' % (key, value)
-            tags += '</pre>'
-            # import xml.etree.ElementTree as ET
-            # osm_xml = "'%s'" % ET.tostring(osm_data.to_xml())
+            osm_data_tags = osm_data.tags
+            tags = create_pre(osm_data.tags, kindergarten.tags)
 
             if isinstance(osm_data, osmapis.Node):
                 osm_type_str = 'node'
@@ -131,6 +143,12 @@ def create_rows(osm, data):
                 pass            # hack
             except Exception as e:
                 logger.exception('Unable to get lat/lon from %s %s', osm_data, e)
+
+
+        # Tags from nbr
+        tags_nbr = create_pre(kindergarten.tags, osm_data_tags)
+        row.append(tags_nbr)
+                
         row.append(tags)
         
         # Links
