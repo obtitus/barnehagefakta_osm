@@ -27,16 +27,6 @@ link_template = u'<a href="{href}"\ntitle="{title}">{text}</a>'
 # base_url = 'http://obtitus.github.io/barnehagefakta_osm_data/'
 # base_url = ''
 
-def get_osm_files(folder):
-    for filename in os.listdir(folder):
-        filename = os.path.join(folder, filename)
-        if filename.endswith('.osm'):
-            logger.info('.osm file %s', filename)
-            with open(filename) as f:
-                data = osmapis.OSMnsrid.from_xml(f.read())
-            
-            yield filename, data
-
 def not_empty_file(filename):
     """Return True if file does exist and is not empty"""
     #if os.path.exists(filename):
@@ -231,7 +221,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
             info_warning = ''
             count_osm = 0
             count_duplicate_osm = 0
-            for filename, data in get_osm_files(folder):
+            for filename, data in update_osm.get_osm_files(folder):
                 t, c_osm, c_duplicate_osm = create_rows(osm, data)
                 table.extend(t)
                 count_osm += c_osm

@@ -23,6 +23,17 @@ except ImportError:
 
 from barnehagefakta_osm import create_osmtags
 
+def get_osm_files(folder):
+    """Yields parsed .osm files below folder as a tuple (filename, osmapis.OSMnsrid)"""
+    for filename in os.listdir(folder):
+        filename = os.path.join(folder, filename)
+        if filename.endswith('.osm'):
+            logger.info('.osm file %s', filename)
+            with open(filename) as f:
+                data = osmapis.OSMnsrid.from_xml(f.read())
+            
+            yield filename, data
+
 def find_outdated(root):
     """Yields all {nbr_id}-%Y-%m-%d-OUTDATED.json files below directory 'root'.
     the tuple (filename_outdated, filename_updated, nbr_id) is yielded
