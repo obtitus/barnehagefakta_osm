@@ -4,6 +4,8 @@ import logging
 logger = logging.getLogger('barnehagefakta.nbrId')
 # Non-standard imports
 import requests
+# This project
+import file_util
 
 class GentleRequests(requests.Session):
     """Wrapper around the requests library that inserts a delay to avoid
@@ -35,3 +37,23 @@ class GentleRequests(requests.Session):
         self.request_counter += 1
         
         return super(GentleRequests, self).get(*args, **kwargs)
+
+    def get_cached(self, url, cache_filename, old_age_days=30):
+        cached, outdated = file_util.cached_file(cache_filename, old_age_days)
+        if cached is not None and not(outdated):
+            return cached
+
+        try:
+            r = request_session.get(url)
+        except requests.ConnectionError as e:
+            logger.error('Could not connect to %s, try again later? %s', url, e)
+            return None
+
+        logger.info('requested %s, got %s', url, r)
+        if r.status_code == 200:
+            ret = r.content
+            file_util.write_file(cache_filename, ret)
+            return ret
+        else:
+            logger.error('Invalid status code %s', r.status_code)
+            return None

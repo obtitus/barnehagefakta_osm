@@ -23,25 +23,8 @@ def get(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):
     url += '&Sidenummer={0:d}'.format(page_nr)
 
     filename = os.path.join(cache_dir, kommune_id, 'nbr_udir_no_page{0}.html'.format(page_nr))
-    cached, outdated = file_util.cached_file(filename, old_age_days)
-    if cached is not None and not(outdated):
-        return cached
-
-    try:
-        r = request_session.get(url)
-    except requests.ConnectionError as e:
-        logger.error('Could not connect to %s, try again later? %s', url, e)
-        return None
+    return request_session.get_cached(url, filename, old_age_days=old_age_days)
     
-    logger.info('requeted %s, got %s', url, r)
-    if r.status_code == 200:
-        ret = r.content
-        file_util.write_file(filename, ret)
-        return ret
-    else:
-        logger.error('Invalid status code %s', r.status_code)
-        return None
-
 def find_search_table(soup):
     """Finds correct table, raise exception if multiple (or no) matching tables are found"""
     ret = list()
@@ -153,7 +136,7 @@ if __name__ == '__main__':
     import argparse_util
     parser = argparse_util.get_parser('''Gets nbr_ids for the given kommune by searching https://nbr.udir.no/sok/.
     Note: this file is called by barnehagefakta_osm.py when --update_kommune is passed.''')
-    parser.add_argument('Kommunenr', nargs='?',
+    parser.add_argument('kommunenr', nargs='+',
                         help='List of kommune-ids')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .html files and .json outputs, defaults to data/')    
@@ -161,5 +144,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
-    for kommune_id in parser.kommunenr:
+    for kommune_id in args.kommunenr:
         update_kommune(kommune_id)
