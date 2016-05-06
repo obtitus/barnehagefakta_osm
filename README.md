@@ -20,7 +20,7 @@ OSM area and data.udir dataset. The output is an .osm file which can be reviewed
 * `barnehagefakta_get.py` is intended to be a general script for downloading
   (with a local cache) json files from http://barnehagefakta.no/api/barnehage/<nsrid>.
 
-* The api does not currently give a list of nsrids so
+* The api did not give a list of valid nsrids when I wrote this, so
   `barnehageregister_nbrId.py` parses https://nbr.udir.no/sok for a given kommune-nr.
   The file kommunenummer.py contains a dictionary of kommune-nr and name.
 
