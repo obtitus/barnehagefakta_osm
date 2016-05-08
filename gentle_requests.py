@@ -44,7 +44,7 @@ class GentleRequests(requests.Session):
             return cached
 
         try:
-            r = request_session.get(url)
+            r = self.get(url)
         except requests.ConnectionError as e:
             logger.error('Could not connect to %s, try again later? %s', url, e)
             return None

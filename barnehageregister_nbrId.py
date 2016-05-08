@@ -9,13 +9,11 @@ import json
 import logging
 logger = logging.getLogger('barnehagefakta.barnehageregister_nbrId')
 # non-standard imports
-import requests
-# request_session = requests.session()
-import gentle_requests
-request_session = gentle_requests.GentleRequests()
 from bs4 import BeautifulSoup
 # This project
 import file_util
+import gentle_requests
+request_session = gentle_requests.GentleRequests()
 
 def get(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):
     url = 'https://nbr.udir.no/sok/sokresultat?FritekstSok=&NedlagteEnheter=false&AktiveEnheter=true&AktiveEnheter=false&Eiere=false'

@@ -15,7 +15,7 @@ from jinja2 import Template
 # This project
 import update_osm
 import osmapis_nsrid as osmapis
-import kommunenummer
+from kommunenummer import kommunenummer
 
 from htmldiff import htmldiff
 def my_htmldiff(a, b):
@@ -205,6 +205,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
     with open_utf8(index_template) as f:
         index_template = Template(f.read())
 
+    kommune_nr2name, kommune_name2nr = kommunenummer(cache_dir=data_dir)
     index_table = list()
     # counters for bottom of main table (what a mess)
     total_nbr = 0
@@ -220,9 +221,6 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
             
             logger.info('Kommune folder = %s', folder)
 
-            kommune_name = kommunenummer.nrtonavn[int(kommune_nr)] + ' kommune'
-            #title = 'Barnehager i %s kommune (%s)' % (kommune_name, kommune_nr)
-            
             table = list()
             info = ''
             info_warning = ''
@@ -254,6 +252,13 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                 info_warning += u'<p>Sjekk gjerne {0}</p>'.format(link)
                 
             if len(table) != 0:
+
+                try:
+                    kommune_name = kommune_nr2name[int(kommune_nr)] + ' kommune'
+                except KeyError as e:
+                    logger.exception('Could not translate kommune_nr = %s to a name', kommune_nr)
+                    kommune_name = 'ukjent'
+                
                 total_nbr += len(table)
                 total_osm += count_osm
                 

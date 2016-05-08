@@ -12,7 +12,7 @@ import osmapis
 # This project:
 from barnehagefakta_get import barnehagefakta_get, NotFoundException
 from barnehageregister_nbrId import get_kommune, update_kommune
-from kommunenummer import nrtonavn, navntonr
+from kommunenummer import kommunenummer
 import file_util
 
 def remove_empty_values(dct):
@@ -195,15 +195,16 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, s
 
 def to_kommunenr(arg):
     """Allow flexible format for kommune-name, by either number or name"""
+    nr2name, name2nr = kommunenummer()
     try:
         nr = int(arg)
     except ValueError:          # not int
         try:
-            nr = navntonr[arg]
+            nr = name2nr[arg]
         except KeyError:
             raise KeyError('Kommune-name "%s" not recognized' % arg)
 
-    if not nr in nrtonavn:
+    if not nr in nr2name:
         raise ValueError('Kommune-nr %s not found in kommunenummer.py, feel free to correct the file' % nr)
     
     return '{0:04d}'.format(nr)
@@ -246,7 +247,8 @@ Specify either by --nbr_id or by --kommune.''',
     
     if args.kommune:      # list of kommuner given
         if args.kommune == ['ALL']:
-            kommunenummer = map(to_kommunenr, nrtonavn.keys())
+            nr2name, _ = kommunenummer()
+            kommunenummer = map(to_kommunenr, nr2name.keys())
         else:
             kommunenummer = map(to_kommunenr, args.kommune)
         
