@@ -15,6 +15,9 @@ from barnehageregister_nbrId import get_kommune, update_kommune
 from kommunenummer import kommunenummer
 import file_util
 
+# global
+reg_phone = re.compile('((0047)?|(\+47)?)([- _0-9]+)')
+
 def remove_empty_values(dct):
     """Remove all dictionary items where the value is '' or None."""
     for key in dct.keys():
@@ -42,6 +45,34 @@ def parse_apningstid(apningstid):
     except Exception as e:
         logger.warning('Error when parsing apningstid = "%s". %s', apningstid, e)
         return None
+
+def add_country_code(input_dict, key, inplace=False):
+    '''Does nothing if key is not in input_dict, otherwise, assume key points to a
+    legal norwegian phone number and adds the '+47 ' prefix.
+    note: this is not a very strict test, 
+    but we want to ensure the number is mostly integers and does not already have the +47 prefix.
+    inspired by:
+    from http://begrep.difi.no/Felles/mobiltelefonnummer: "^\\+?[- _0-9]+$"
+    from http://blog.kjempekjekt.com/2011/12/23/regex/: /^((0047)?|(\+47)?|(47)?)\d{8}$/
+    does: ((0047)?|(\+47)?)([- _0-9]+)
+    '''
+    if key not in input_dict:
+        return input_dict
+    
+    if inplace:
+        d = input_dict
+    else:
+        d = dict(input_dict)
+    
+    reg = reg_phone.match(d[key])
+    if reg is not None:
+        # all okey, lets add +47
+        d[key] = '+47 ' + reg.group(4)
+    else:
+        logger.warning('Possibly a invalid phone number: "%s", removing', d[key])
+        del d[key]
+    
+    return d
 
 def create_osmtags(udir_tags, operator='', name=''):
     # See http://data.udir.no/baf/json-beskrivelse.html for a full list of expected keys
@@ -135,6 +166,9 @@ def create_osmtags(udir_tags, operator='', name=''):
     remove_empty_values(osm_tags)
     values_to_str(osm_tags)
     
+    # if we still have a phone number, add a +47, ref issue #1
+    add_country_code(osm_tags, key='contact:phone', inplace=True)
+    
     # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)
     logger.info('%d, Created node %s', nsrId, node)
@@ -185,6 +219,7 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, s
                                 name=name.encode('utf8'), id=nbr_id))
         except:
             logger.exception('Un-handled exception for nbr_id = %s, skipping', nbr_id)
+            exit(1)
             return osm, osm_familiebarnehage
 
     if save and len(osm) != 0:

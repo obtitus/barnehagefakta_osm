@@ -45,7 +45,7 @@ def merge_kindergarten(osm, kindergarten):
                 print_html_diff(osm_data_tags[key], nbr_data_tags[key])
                 if key in ('operator', 'name'): # skip these for now
                     print 'Skipping\n'
-                elif key in ('contact:email', 'capacity'):
+                elif key in ('contact:email', 'capacity', 'contact:phone'):
                     promt_user = False
                     update = True
                     print 'Updating\n'
