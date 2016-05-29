@@ -49,7 +49,10 @@ def barnehagefakta_get_json(nbr_id, old_age_days=20, cache_dir='data', keep_hist
     (2b) Calling the function again with the same {nbr_id} after old_age_days has passed,
     will visit barnehagefakta again, refreshing and returning the local .json file.
     If the responce has changed from last time, the previous result is archived as
-    cache_dir/barnehagefakta_no_nbrId{nbr_id}-{%Y-%m-%d}-OUTDATED.json"""
+    cache_dir/barnehagefakta_no_nbrId{nbr_id}-{%Y-%m-%d}-OUTDATED.json
+
+    May raise requests.ConnectionError if the connection fails.
+    """
     
     filename = os.path.join(cache_dir, 'barnehagefakta_no_nbrId{0}.json'.format(nbr_id))
     cached, outdated = file_util.cached_file(filename, old_age_days)
@@ -58,11 +61,11 @@ def barnehagefakta_get_json(nbr_id, old_age_days=20, cache_dir='data', keep_hist
     # else, else:
 
     url = 'http://barnehagefakta.no/api/barnehage/{0}'.format(nbr_id)
-    try:
-        r = request_session.get(url)
-    except requests.ConnectionError as e:
-        logger.error('Could not connect to %s, try again later? %s', url, e)
-        return None
+    # try:
+    r = request_session.get(url)
+    # except requests.ConnectionError as e:
+    #     logger.error('Could not connect to %s, try again later? %s', url, e)
+    #     return None
     
     logger.info('requested %s, got %s', url, r)
     ret = None

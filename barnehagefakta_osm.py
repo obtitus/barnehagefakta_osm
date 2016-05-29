@@ -134,7 +134,7 @@ def create_osmtags(udir_tags, operator='', name=''):
     # cleanup, remove empty values and convert to string.
     remove_empty_values(osm_tags)
     values_to_str(osm_tags)
-
+    
     # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)
     logger.info('%d, Created node %s', nsrId, node)

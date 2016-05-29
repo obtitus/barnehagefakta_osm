@@ -11,12 +11,13 @@ class GentleRequests(requests.Session):
     """Wrapper around the requests library that inserts a delay to avoid
     excessive load on the server.
     NOTE: currently only wraps get() calls."""
-    def __init__(self, N_delay=10, delay_seconds=30):
-        """For every N_delay requests, delay by delay_seconds"""
+    def __init__(self, N_delay=10, delay_seconds=30, retry_connection_error_hours=24):
+        """For every N_delay requests, delay by delay_seconds, if connection failure, retry for retry_connection_error_hours"""
         self.N_delay = N_delay
         self.delay_seconds = delay_seconds
         self.previous_request = None
         self.request_counter = 0
+        self.retry_connection_error_hours = retry_connection_error_hours
         
         super(GentleRequests, self).__init__()
 
@@ -35,7 +36,19 @@ class GentleRequests(requests.Session):
                 time.sleep(sleep_time)
                 
         self.request_counter += 1
-        
+
+        # now retry until we do not get a ConnectionError
+        first_request = time.time()
+        delta = 0
+        while delta < 3600*self.retry_connection_error_hours:
+            try:
+                return super(GentleRequests, self).get(*args, **kwargs)
+            except requests.ConnectionError as e:
+                delta = time.time() - first_request
+                logger.info('Could not connect to %s, trying again in %s: %s', url, delta, e)
+                time.sleep(delta) # linear backoff                
+
+        # try a last time
         return super(GentleRequests, self).get(*args, **kwargs)
 
     def get_cached(self, url, cache_filename, old_age_days=30):

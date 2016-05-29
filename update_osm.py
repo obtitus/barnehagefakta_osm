@@ -68,7 +68,7 @@ def find_all_nsrid_osm_elements(osm, nsrid=None):
             yield elem
 
 def overpass_nsrid(nsrid='*',
-                   bbox_scandinavia = '[bbox=3.8671874,57.63363,31.96582,71.6498329]'): 
+                   bbox_scandinavia = '[bbox=3.33984375,57.468589192089325,38.408203125,81.1203884020757]'):
      # bbox_scandinavia: limit request size, should contains all of Norway.
 
     filename = 'overpass_api_cache_%s_%s.xml' % (nsrid, bbox_scandinavia)
