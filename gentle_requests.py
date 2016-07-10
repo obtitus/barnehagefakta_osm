@@ -1,5 +1,6 @@
 # Standard python imports
 import time
+import datetime
 import logging
 logger = logging.getLogger('barnehagefakta.nbrId')
 # Non-standard imports
@@ -24,7 +25,7 @@ class GentleRequests(requests.Session):
         info = 'Barnehagefakta to Openstreetmap (https://github.com/obtitus/barnehagefakta_osm) '
         self.headers['User-Agent'] = info + self.headers['User-Agent']
 
-    def get(self, *args, **kwargs):
+    def get(self, url, *args, **kwargs):
         # ugly? yes, over-complicated? yes, wierd? definitely
         if self.request_counter == 0:
             self.previous_request = time.time()
@@ -42,14 +43,26 @@ class GentleRequests(requests.Session):
         delta = 0
         while delta < 3600*self.retry_connection_error_hours:
             try:
-                return super(GentleRequests, self).get(*args, **kwargs)
-            except requests.ConnectionError as e:
+                return super(GentleRequests, self).get(url, *args, **kwargs)
+            except (requests.ConnectionError, requests.ReadTimeout) as e:
                 delta = time.time() - first_request
-                logger.info('Could not connect to %s, trying again in %s: %s', url, delta, e)
-                time.sleep(delta) # linear backoff                
+
+                # decide on severity:
+                logger_lvl = logging.DEBUG
+                if delta > 60:
+                    logger_lvl = logging.INFO
+                if delta > 60*5:
+                    logger_lvl = logging.WARNING
+                if delta > 60*60:
+                    logger_lvl = logging.ERROR
+                # log
+                logger.log(logger_lvl, 'Could not connect to %s, trying again in %s: %s',
+                           url, datetime.timedelta(seconds=delta), e)
+                # linear backoff
+                time.sleep(delta)
 
         # try a last time
-        return super(GentleRequests, self).get(*args, **kwargs)
+        return super(GentleRequests, self).get(url, *args, **kwargs)
 
     def get_cached(self, url, cache_filename, old_age_days=30):
         cached, outdated = file_util.cached_file(cache_filename, old_age_days)
@@ -62,7 +75,7 @@ class GentleRequests(requests.Session):
             logger.error('Could not connect to %s, try again later? %s', url, e)
             return None
 
-        logger.info('requested %s, got %s', url, r)
+        logger.info('requested %s %s, got %s', url, cache_filename, r)
         if r.status_code == 200:
             ret = r.content
             file_util.write_file(cache_filename, ret)
