@@ -10,9 +10,17 @@ import logging
 logger = logging.getLogger('barnehagefakta.update_osm')
 
 # Non standard
-import requests
-request_session = requests.session()
+# import requests
+# request_session = requests.session()
+try:
+    import datadiff
+except ImportError:
+    logger.warning('no datadiff found, no pretty dictionary diff for you.')
+    datadiff = None
+    
 # This project
+import gentle_requests
+request_session = gentle_requests.GentleRequests()
 import file_util
 import osmapis_nsrid as osmapis
 try:
@@ -251,6 +259,9 @@ if __name__ == '__main__':
         if osm_outdated.tags == osm_updated.tags: # none of the tags that we care about has changed
             N_no_relevant_tags += 1
             logger.info('nbrid = %s no relevant tags changed, removing', nbr_id) # fixme: check for lat/lon changes...
+            if datadiff is not None:
+                logger.debug("%s", datadiff.diff(outdated, updated))
+                
             os.remove(filename_outdated)
             continue
 
@@ -267,6 +278,9 @@ if __name__ == '__main__':
         if len(osm_elements) == 0:
             N_not_added += 1
             logger.info('nbrid = %s has not been added to osm, removing the OUTDATED file', nbr_id)
+            if datadiff is not None:
+                logger.info("%s", datadiff.diff(outdated, updated))
+            
             os.remove(filename_outdated)
         elif len(osm_elements) == 1:
             osm_element = osm_elements[0]
