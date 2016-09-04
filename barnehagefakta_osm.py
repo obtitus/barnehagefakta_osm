@@ -171,7 +171,7 @@ def create_osmtags(udir_tags, operator='', name=''):
     
     # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)
-    logger.info('%d, Created node %s', nsrId, node)
+    logger.debug('%d, Created node %s', nsrId, node)
     return node, udir_tags['type']
 
 def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, save=True):

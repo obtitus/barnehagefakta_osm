@@ -34,7 +34,7 @@ def equal_json_responses(res1, res2, ignore=('id', 'indikatorDataKommune')):
     except:
         return res1 != res2
         
-def barnehagefakta_get_json(nbr_id, old_age_days=20, cache_dir='data', keep_history=True):
+def barnehagefakta_get_json(nbr_id, old_age_days=5, cache_dir='data', keep_history=True):
     """Returns json string for the given nbr_id, caches result to file in directory cache_dir. 
     If the cached result is older than old_age_days a new version is fetched.
     By default (if keep_history is True) changes in the response will detected 
