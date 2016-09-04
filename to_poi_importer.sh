@@ -25,5 +25,10 @@ $node $osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barne
 $node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
 cd $OUTPUTDIR
 $git add -A data/
-$git commit -am "data update" || true
+$git commit -am "auto data update" || true
+$git push || true
+
+# update submodule
+cd ../
+$git commit -am "auto submodule update" || true
 $git push || true
