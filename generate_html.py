@@ -27,7 +27,7 @@ link_template = u'<a href="{href}"\ntitle="{title}">{text}</a>'
 # base_url = 'http://obtitus.github.io/barnehagefakta_osm_data/'
 # base_url = ''
 
-def not_empty_file(filename):
+def not_empty_file(filename, ignore_missing_file=False):
     """Return True if file does exist and is not empty"""
     #if os.path.exists(filename):
     try:
@@ -36,7 +36,8 @@ def not_empty_file(filename):
             if c.strip() != '':
                 return True
     except Exception as e:
-        logger.warning('file does not exists "%s", %s', filename, e)
+        if not(ignore_missing_file):
+            logger.warning('file does not exists "%s", %s', filename, e)
     return False
 def get_lat_lon(osm, osm_data):
     way = None
@@ -215,6 +216,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
         if os.path.isdir(folder):
             page_filename = os.path.join(root_output, kommune_nr + '.html')
             warning_filename = os.path.join(root_output, 'data', kommune_nr, 'warnings.log')
+            discontinued_filename = os.path.join(root_output, 'data', kommune_nr, 'barnehagefakta_discontinued.csv')
             last_update_stamp = os.path.getmtime(folder)
             last_update_datetime = datetime.fromtimestamp(last_update_stamp)
             last_update = last_update_datetime.strftime('%Y-%m-%d %H:%M')
@@ -247,9 +249,15 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
 
             if not_empty_file(warning_filename):
                 link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=warning_filename,
-                                                                                title=u"Sjekk warnings.log",
+                                                                                title=u"Sjekk gjerne warnings.log",
                                                                                 text='warnings.log')
-                info_warning += u'<p>Sjekk gjerne {0}</p>'.format(link)
+                info_warning += u'<p>Sjekk gjerne {0}</p>\n'.format(link)
+
+            if not_empty_file(discontinued_filename, ignore_missing_file=True):
+                link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=discontinued_filename,
+                                                                                title=u"Sjekk gjerne discontinued.csv",
+                                                                                text='discontinued.csv')
+                info_warning += u'<p>Sjekk gjerne {0} for barnehager i nbr sitt register som ikke ligger i barnehagefakta.no</p>\n'.format(link)
                 
             if len(table) != 0:
 
@@ -311,7 +319,7 @@ def get_osm_data():
     xml = update_osm.overpass_nsrid()
     osm = osmapis.OSMnsrid.from_xml(xml)
     # osm_elements = list(update_osm.find_all_nsrid_osm_elements(osm))
-    print len(osm.nsrids), osm.nsrids
+    print 'Overpass returned', len(osm.nsrids), 'objects'#, osm.nsrids
     return osm
 
 if __name__ == '__main__':

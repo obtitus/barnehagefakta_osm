@@ -4,6 +4,8 @@
 # Standard python imports
 import re
 import os
+import codecs
+open = codecs.open
 import datetime
 import logging
 logger = logging.getLogger('barnehagefakta')
@@ -174,12 +176,13 @@ def create_osmtags(udir_tags, operator='', name=''):
     logger.debug('%d, Created node %s', nsrId, node)
     return node, udir_tags['type']
 
-def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, save=True):
+def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, discontinued=None, save=True):
     """if osm and osm_familiebarnehage are given, they will be appended to.
     Ensure save is True to save the files (only needed on the last iteration)"""
     
     base, ext = os.path.splitext(output_filename)
     output_filename_familiebarnehager = base + '_familiebarnehager' + ext
+    output_filename_discontinued = base + '_discontinued' + '.csv'
     
     if osm is None:
         osm = osmapis.OSM()
@@ -188,6 +191,8 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, s
         osm_familiebarnehage = osmapis.OSM()
     
     visited_ids = set()
+    if discontinued is None:
+        discontinued = list()
     for item in lst:
         operator = ''
         name = ''
@@ -213,20 +218,35 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, s
             else:
                 osm.add(node)
         except NotFoundException as e:
-            logger.warning(('Kindergarten "{name}" https://nbr.udir.no/enhet/{id}'
-                            ', returned 404 at http://barnehagefakta.no/api/barnehage/{id}. '
-                            'The kindergarten is probably discontinued.').format(
-                                name=name.encode('utf8'), id=nbr_id))
+            logger.info(('Kindergarten "{name}" https://nbr.udir.no/enhet/{id}'
+                         ', returned 404 at http://barnehagefakta.no/api/barnehage/{id}. '
+                         'The kindergarten is probably discontinued.').format(
+                             name=name.encode('utf8'), id=nbr_id))
+            discontinued.append((name, operator, str(nbr_id)))
         except:
             logger.exception('Un-handled exception for nbr_id = %s, skipping', nbr_id)
             exit(1)
-            return osm, osm_familiebarnehage
+            return osm, osm_familiebarnehage, discontinued
 
     if save and len(osm) != 0:
         osm.save(output_filename)
     if save and len(osm_familiebarnehage) != 0:
         osm_familiebarnehage.save(output_filename_familiebarnehager)
-    return osm, osm_familiebarnehage
+    if save and len(discontinued) != 0:
+        with open(output_filename_discontinued, 'w', 'utf-8') as f:
+            f.write('# The following kindergartens exists in the https://nbr.udir.no/enhet/{id} directory, but gives 404 at http://barnehagefakta.no/api/barnehage/{id}, the following kindergartens are probably discontinued.\n')
+            header = ['name', 'operator', 'nbr id']
+            discontinued.insert(0, header)
+            for row in discontinued:
+                r = map(lambda x: '"' + x + '"', row)
+                r = ', '.join(r) + '\n'
+                f.write(r)
+            # csv does not handle utf8
+            # print discontinued
+            # w = csv.writer(f)
+            # w.writerows(discontinued)
+    
+    return osm, osm_familiebarnehage, discontinued
 
 def to_kommunenr(arg):
     """Allow flexible format for kommune-name, by either number or name"""
@@ -278,7 +298,7 @@ Specify either by --nbr_id or by --kommune.''',
     fh = add_file_handler()
 
     output_filename = args.output_filename
-    osm, osm_f = None, None
+    osm, osm_f, discontinued = None, None, None
     
     if args.kommune:      # list of kommuner given
         if args.kommune == ['ALL']:
@@ -302,8 +322,9 @@ Specify either by --nbr_id or by --kommune.''',
                 output_filename = os.path.join(cache_dir, 'barnehagefakta.osm')
                 main(k, output_filename, cache_dir)
             else:
-                osm, osm_f = main(k, output_filename, cache_dir, osm, osm_f,
-                                  save=kommune_id == kommunenummer[-1]) # hack
+                osm, osm_f, discontinued = main(k, output_filename, cache_dir, osm, osm_f,
+                                                discontinued=discontinued,
+                                                save=kommune_id == kommunenummer[-1]) # hack
                 
     if args.nbr_id:
         if args.output_filename is None:
