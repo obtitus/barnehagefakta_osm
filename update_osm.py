@@ -110,7 +110,21 @@ def update_osm(original, modified, username=None, password=None, comment=''):
         
     osc = osmapis.OSC.from_diff(original, modified)
     print 'DIFF:', osc
-    raw_input('Please confirm (ctrl-c to cancel, enter to continue)')
+    user_input = raw_input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete>>[y] ')
+    if user_input.lower() in ('y', ''):
+        update = True
+    elif user_input.lower() in ('s', 'n'):
+        print 'Skipping.'
+        return False
+    elif user_input.lower() in ('d', 'delete'):
+        print 'Deleting'
+        return True
+    elif user_input.lower() in ('q', 'e'):
+        exit(1)
+    else:
+        print 'unkown user_input, breaking.', repr(user_input)
+        exit(1)
+
     
     api = osmapis.API(username=username, password=password,
                       changeset_tags=dict(source="Nasjonalt barnehageregister",

@@ -1,5 +1,7 @@
 # standard python imports
 import os
+import sys
+import time
 
 # non standard imports, fixme: merge generate_html.py
 from htmldiff import htmldiff
@@ -17,6 +19,13 @@ def print_html_diff(a, b, addStylesheet=True):
 import update_osm
 import osmapis_nsrid as osmapis
 import update_osm
+
+def print_osm_keys(osm_data_tags):
+    print 'OSM keys are'
+    for osm_key in sorted(osm_data_tags.keys()): print '%s = %s' % (osm_key, osm_data_tags[osm_key])
+    sys.stdout.flush()
+    time.sleep(1)
+
 
 def get_osm_data():
     xml = update_osm.overpass_nsrid()
@@ -37,28 +46,63 @@ def merge_kindergarten(osm, kindergarten):
     for key in nbr_data_tags:
         promt_user = False
         update = False
-        if key in osm_data_tags:
-            if osm_data_tags[key] == nbr_data_tags[key]:
-                pass
-            else:
-                print '\n==== %s key = "%s", nbr != osm: "%s" != "%s" ====' % (nsrid, key, nbr_data_tags[key], osm_data_tags[key])
-                print_html_diff(osm_data_tags[key], nbr_data_tags[key])
-                if key in ('operator', 'name'): # skip these for now
-                    print 'Skipping\n'
-                elif key in ('contact:email', 'capacity', 'contact:phone'):
+        if key.startswith('contact:'):
+            key_short = key[len('contact:'):]
+            if key_short in osm_data_tags: # I hate this usage
+                if osm_data_tags[key_short] == nbr_data_tags[key]: # equality, lets remove short key
+                    print 'redundant short key osm[%s] = %s == nbr[%s] = %s' % (key_short, osm_data_tags[key_short], key, nbr_data_tags[key])
                     promt_user = False
                     update = True
-                    print 'Updating\n'
-                else:
+                    del osm_data_tags[key_short]
+                else:           # keys not equal, manual intervention
+                    print 'differing short key nbr[%s] = %s != osm[%s] = %s' % (key_short, osm_data_tags[key_short], key, nbr_data_tags[key])
                     promt_user = True
+                    #update = True
+                    print_osm_keys(osm_data_tags)                    
+                    
+                    user_input = raw_input('please supply correct value for %s>> ' % key)
+                    if user_input.lower() in ('s', 'n'):
+                        continue
 
-        else:
-            print '\n=== %s key = "%s", "%s" missing from osm, Add? ===' % (nsrid, key, nbr_data_tags[key])
-            promt_user = True
+                    del osm_data_tags[key_short]
+                    osm_data_tags[key] = user_input
+                    osm_data.attribs['action'] = 'modify'
+                    update = False # fixme
+            
+        # if key in osm_data_tags:
+        #     if osm_data_tags[key] == nbr_data_tags[key]:
+        #         pass
+        #     else:
+        #         print '\n==== %s key = "%s", nbr != osm: "%s" != "%s" ====' % (nsrid, key, nbr_data_tags[key], osm_data_tags[key])
+        #         print_html_diff(osm_data_tags[key], nbr_data_tags[key])
+        #         if key in ('operator', 'name'): # skip these for now
+        #             print 'Skipping\n'
+        #         elif key in ('capacity', ):
+        #             promt_user = False
+        #             update = True
+        #             print 'Updating\n'
+        #         # elif key.startswith('contact:'):
+        #         #     print 'skipping contact update %s' % key
+        #         #     promt_user = False
+        #         #     update = False
+        #             # key_short = key[len('contact:'):]
+        #             # if key_short in osm_data_tags:
+        #             #     if osm_data_tags[key_short] != nbr_data_tags[key]:
+        #             #         print 'fucking mess, %s != %s', key, key_short
+        #             # promt_user = True
+        #         else:
+        #             promt_user = True
+
+        # else:
+        #     # if key.startswith('contact:'):
+        #     #     print 'skipping contact update %s' % key
+        #     #     promt_user = False
+        #     #     update = False
+        #     print '\n=== %s key = "%s", "%s" missing from osm, Add? ===' % (nsrid, key, nbr_data_tags[key])
+        #     promt_user = True
 
         if promt_user:
-            print 'OSM keys are'
-            for osm_key in sorted(osm_data_tags.keys()): print '%s = %s' % (osm_key, osm_data_tags[osm_key])
+            print_osm_keys(osm_data_tags)
             
             user_input = raw_input('>>[y] ')
             if user_input.lower() in ('y', ''):
