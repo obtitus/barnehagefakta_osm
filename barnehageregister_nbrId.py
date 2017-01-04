@@ -80,6 +80,11 @@ def get_raw(table):
         # fixme: cleaner way to find div with class='search-result-owner'
         for element in row.find_all('div'):
             if 'search-result-owner' in element['class']:
+                try: element.span.text
+                except Exception as e:
+                    logger.exception('nbrId=%s vops element=%s, error=%s', nbrId, element, e)
+                    continue
+                
                 if element.span.text == 'Eier':
                     link = element.div.a
                     raw_data['Eier'] = link.text
@@ -125,7 +130,11 @@ def parse(content):
     table = find_search_table(soup)
     
     for raw_data in get_raw(table):
-        assert len(raw_data) == len(expected_data), 'length %s != %s, got %s' % (len(raw_data), len(expected_data), raw_data.keys())
+        if len(raw_data) != len(expected_data):
+            logger.error('length %s != %s, got %s' % (len(raw_data), len(expected_data), raw_data.keys()))
+            continue
+        
+        #assert len(raw_data) == len(expected_data), 'length %s != %s, got %s' % (len(raw_data), len(expected_data), raw_data.keys())
         #assert raw_data['Type'] == 'Bedrift' # seems to be true, so why not check for it
         for key in expected_data:
             if expected_data[key] == basestring:
