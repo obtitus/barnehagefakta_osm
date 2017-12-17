@@ -214,6 +214,13 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
     for kommune_nr in os.listdir(data_dir):
         folder = os.path.join(data_dir, kommune_nr)
         if os.path.isdir(folder):
+            try:
+                kommune_name = kommune_nr2name[int(kommune_nr)] + ' kommune'
+            except KeyError as e:
+                logger.warning('Could not translate kommune_nr = %s to a name. Skipping', kommune_nr)
+                #kommune_name = 'ukjent'
+                continue
+
             page_filename = os.path.join(root_output, kommune_nr + '.html')
             warning_filename = os.path.join(root_output, 'data', kommune_nr, 'warnings.log')
             discontinued_filename = os.path.join(root_output, 'data', kommune_nr, 'barnehagefakta_discontinued.csv')
@@ -233,17 +240,17 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                 table.extend(t)
                 count_osm += c_osm
                 count_duplicate_osm += c_duplicate_osm
-
+                filename_base = os.path.basename(filename)
                 if filename.endswith('barnehagefakta.osm'):
                     link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
-                                                                                  title=u"Trykk for å laste ned "+ filename,
-                                                                                  text=filename)
+                                                                                    title=u"Trykk for å laste ned "+ filename_base,
+                                                                                    text=filename_base)
                     info += u'<p>{link} inneholder data fra NBR som noder, denne kan åpnes i JOSM.</p>'.format(link=link)
                     
                 if filename.endswith('barnehagefakta_familiebarnehager.osm'):
                     link = u'<a href="{href}"\ntitle="{title}">\n{text}</a>'.format(href=filename,
-                                                                                  title=u"Trykk for å laste ned "+filename,
-                                                                                  text=filename)
+                                                                                    title=u"Trykk for å laste ned "+filename_base,
+                                                                                    text=filename_base)
                     info += u'<p>Familiebarnehager er vanskeligere å kartlegge, disse ligger derfor i sin egen fil: {link}</p>'.format(link=link)
 
 
@@ -260,13 +267,6 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
                 info_warning += u'<p>Sjekk gjerne {0} for barnehager i nbr sitt register som ikke ligger i barnehagefakta.no</p>\n'.format(link)
                 
             if len(table) != 0:
-
-                try:
-                    kommune_name = kommune_nr2name[int(kommune_nr)] + ' kommune'
-                except KeyError as e:
-                    logger.exception('Could not translate kommune_nr = %s to a name', kommune_nr)
-                    kommune_name = 'ukjent'
-                
                 total_nbr += len(table)
                 total_osm += count_osm
                 

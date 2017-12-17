@@ -244,7 +244,7 @@ if __name__ == '__main__':
     main_logger.addHandler(fh)
 
     changeset_comment = 'Auto updated by barnehagefakta_osm.py. The barnehagefakta.no data has been modified and the openstreetmap data corresponds to the previous value from barnehagefakta.no, an automatic update is therefore done.'
-    root = 'data'
+    root = args.data_dir
 
 
     # Summary counters
@@ -266,9 +266,13 @@ if __name__ == '__main__':
             logger.info('nbrid = %s was 404, removing', nbr_id)
             os.remove(filename_outdated)
             continue
+        if updated == 404:
+            logger.error('ERROR: nbrid = %s is now 404. FIXME: support this, previous = %s', nbr_id, outdated)
+            # Note: do not delete before we have a good fix for this!
+            continue
         
-        osm_outdated, _ = create_osmtags(outdated)
-        osm_updated, _ = create_osmtags(updated)
+        osm_outdated, _ = create_osmtags(outdated, args.data_dir)
+        osm_updated, _ = create_osmtags(updated, args.data_dir)
 
         if osm_outdated.tags == osm_updated.tags: # none of the tags that we care about has changed
             N_no_relevant_tags += 1

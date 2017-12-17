@@ -15,6 +15,7 @@ import osmapis
 from barnehagefakta_get import barnehagefakta_get, NotFoundException
 from barnehageregister_nbrId import get_kommune, update_kommune
 from kommunenummer import kommunenummer
+from email_verification import mailbox_check_valid_cached
 import file_util
 
 # global
@@ -48,6 +49,30 @@ def parse_apningstid(apningstid):
         logger.warning('Error when parsing apningstid = "%s". %s', apningstid, e)
         return None
 
+def remove_invalid_email(input_dict, key, inplace=False, cache_dir='data'):
+    '''Does nothing if key is not in input_dict, otherwise, assume key points to a
+    email address that should be checked. If invalid, the address is removed from input_dict.
+    Uses the https://mailboxlayer.com/ api
+    '''
+    if key not in input_dict:
+        return input_dict
+    
+    if inplace:
+        d = input_dict
+    else:
+        d = dict(input_dict)
+
+    email_cache_filename = os.path.join(cache_dir, 'email_cache.json') 
+    valid = mailbox_check_valid_cached(d[key], email_cache_filename)
+    if valid in (True, 'unkown', 'recheck'):
+        pass
+    else:
+        logger.warning('Possibly an invalid email: "%s -> %s", removing', d[key], valid)
+        del d[key]
+    
+    return d
+
+    
 def add_country_code(input_dict, key, inplace=False):
     '''Does nothing if key is not in input_dict, otherwise, assume key points to a
     legal norwegian phone number and adds the '+47 ' prefix.
@@ -76,7 +101,7 @@ def add_country_code(input_dict, key, inplace=False):
     
     return d
 
-def create_osmtags(udir_tags, operator='', name=''):
+def create_osmtags(udir_tags, operator='', name='', cache_dir='data'):
     # See http://data.udir.no/baf/json-beskrivelse.html for a full list of expected keys
     nsrId = int(udir_tags['nsrId']) # ensure int
     
@@ -170,13 +195,16 @@ def create_osmtags(udir_tags, operator='', name=''):
     
     # if we still have a phone number, add a +47, ref issue #1
     add_country_code(osm_tags, key='contact:phone', inplace=True)
+
+    # check that the email is valid
+    remove_invalid_email(osm_tags, key='contact:email', inplace=True, cache_dir=cache_dir)
     
     # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)
     logger.debug('%d, Created node %s', nsrId, node)
     return node, udir_tags['type']
 
-def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, discontinued=None, save=True):
+def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, discontinued=None, save=True, global_cache_dir='data'):
     """if osm and osm_familiebarnehage are given, they will be appended to.
     Ensure save is True to save the files (only needed on the last iteration)"""
     
@@ -211,7 +239,7 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, d
         try:
             udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
             if udir_tags == {}: continue
-            node, barnehage_type = create_osmtags(udir_tags, operator=operator, name=name)
+            node, barnehage_type = create_osmtags(udir_tags, operator=operator, name=name, cache_dir=global_cache_dir)
 
             if barnehage_type == u'Familiebarnehage':
                 osm_familiebarnehage.add(node)
@@ -319,14 +347,15 @@ Specify either by --nbr_id or by --kommune.''',
             k = get_kommune(kommune_id, cache_dir=args.cache_dir)
 
             if args.output_filename is None:
-                output_filename = os.path.join(cache_dir, 'barnehagefakta.osm')
-                main(k, output_filename, cache_dir)
+                output_filename = os.path.join(cache_dir, '%s_barnehagefakta.osm' % kommune_id)
+                main(k, output_filename, cache_dir, global_cache_dir=args.cache_dir)
             else:
                 osm, osm_f, discontinued = main(k, output_filename, cache_dir, osm, osm_f,
                                                 discontinued=discontinued,
-                                                save=kommune_id == kommunenummer[-1]) # hack
+                                                save=kommune_id == kommunenummer[-1],
+                                                global_cache_dir=args.cache_dir) # hack
                 
     if args.nbr_id:
         if args.output_filename is None:
             output_filename = 'barnehagefakta.osm'
-        main(args.nbr_id, output_filename, args.cache_dir)
+        main(args.nbr_id, output_filename, args.cache_dir, global_cache_dir=args.cache_dir)

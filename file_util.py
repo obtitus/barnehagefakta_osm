@@ -52,3 +52,7 @@ def cached_file(filename, old_age_days):
         return content, age > old_age_days
     else:
         return None, True
+
+def sanitize_filename(s):
+    """replaces all funny characters with _"""
+    return "".join([x if x.isalnum() else "_" for x in s])

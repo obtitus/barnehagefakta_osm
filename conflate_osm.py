@@ -31,7 +31,7 @@ def overpass_xml(xml, old_age_days=7, conflate_cache_filename=None):
         return osmapis.OSMnsrid.from_xml(cached)
 
     o = osmapis.OverpassAPI()
-    osm = o.interpreter(query)
+    osm = o.interpreter(xml)
 
     print 'Overpass responce stored as %s' % filename
     osm.save(filename)
@@ -41,8 +41,8 @@ def overpass_xml(xml, old_age_days=7, conflate_cache_filename=None):
 def get_kommune_local(kommune):
     for root, dirs, files in os.walk('.'): # fixme
         if kommune in dirs:
-            filename1 = os.path.join(root, kommune, 'barnehagefakta.osm')
-            filename2 = os.path.join(root, kommune, 'barnehagefakta_familiebarnehager.osm')
+            filename1 = os.path.join(root, kommune, kommune + '_barnehagefakta.osm')
+            filename2 = os.path.join(root, kommune, kommune + '_barnehagefakta_familiebarnehager.osm')
             if os.path.exists(filename2):
                 logger.info('Found %s', filename2)
                 yield filename2
@@ -65,9 +65,12 @@ def get_kommune(kommune):
     kommune = to_kommunenr(kommune) # now a nicely formatted string e.g. '0213'
     try:
         return list(get_kommune_local(kommune))
-    except BaseException:
-        f1 = download('http://obtitus.github.io/barnehagefakta_osm_data/data', kommune, 'barnehagefakta.osm')
-        f2 = download('http://obtitus.github.io/barnehagefakta_osm_data/data', kommune, 'barnehagefakta_familiebarnehager.osm')
+    except BaseException as e:
+        logger.info('Failed to find local barnehagefakt.osm file: %s. Downloading...', e)
+        f1 = download('http://obtitus.github.io/barnehagefakta_osm_data/data', kommune,
+                      kommune + '_barnehagefakta.osm')
+        f2 = download('http://obtitus.github.io/barnehagefakta_osm_data/data', kommune,
+                      kommune + '_barnehagefakta_familiebarnehager.osm')
         return [f1, f2]
 
 def score_similarity_strings(nbr_name, overpass_name):
@@ -118,11 +121,13 @@ def score(nbr_node, overpass_element, overpass_osm):
         
     # how close is the lat/lon
     from generate_html import get_lat_lon # fixme, move this piece of code
-    
-    overpass_lat, overpass_lon = get_lat_lon(overpass_osm, overpass_element) # fixme, only returns 1 node
-    nbr_lat, nbr_lon = nbr_node.attribs['lat'], nbr_node.attribs['lon']
-    diff = (overpass_lat - nbr_lat)**2 + (overpass_lon - nbr_lon)**2 # no unit in particular...
-    score += int(diff*1000)     # random weight...
+
+    lat_lon = get_lat_lon(overpass_osm, overpass_element) # fixme, only returns 1 node
+    if lat_lon is not None:
+        overpass_lat, overpass_lon = lat_lon
+        nbr_lat, nbr_lon = nbr_node.attribs['lat'], nbr_node.attribs['lon']
+        diff = (overpass_lat - nbr_lat)**2 + (overpass_lon - nbr_lon)**2 # no unit in particular...
+        score += int(diff*1000)     # random weight...
     
     return score
 
