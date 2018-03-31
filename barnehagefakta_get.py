@@ -10,9 +10,9 @@ logger = logging.getLogger('barnehagefakta.get')
 # Non-standard imports
 import requests
 # This project
-import gentle_requests
+from utility_to_osm import gentle_requests
 request_session = gentle_requests.GentleRequests()
-import file_util
+from utility_to_osm import file_util
 #
 # Main
 #

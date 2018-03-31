@@ -14,9 +14,9 @@ import osmapis
 # This project:
 from barnehagefakta_get import barnehagefakta_get, NotFoundException
 from barnehageregister_nbrId import get_kommune, update_kommune
-from kommunenummer import kommunenummer
+from utility_to_osm.kommunenummer import kommunenummer, to_kommunenr
 from email_verification import mailbox_check_valid_cached
-import file_util
+from utility_to_osm import file_util
 
 # global
 reg_phone = re.compile('((0047)?|(\+47)?)([- _0-9]+)')
@@ -161,13 +161,17 @@ def create_osmtags(udir_tags, operator='', name='', cache_dir='data'):
             capacity = int(antallBarn) # ensure int
 
 
-    start_date = ''
-    if udir_tags['opprettetDato'] != '':
-        try:
-            d = datetime.datetime.strptime(udir_tags['opprettetDato'], '%m/%d/%Y')
-            start_date = datetime.date(year=d.year, month=d.month, day=d.day).isoformat()
-        except Exception as e:
-            logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", nsrId, udir_tags['opprettetDato'], e)
+    # opprettetDato became incorrect around 2018-02-17 due to a change at nbr
+    # start_date = ''
+    # if udir_tags['opprettetDato'] != '':
+    #     try:
+    #         try:
+    #             d = datetime.datetime.strptime(udir_tags['opprettetDato'], '%m/%d/%Y')
+    #         except:
+    #             d = datetime.datetime.strptime(udir_tags['opprettetDato'], '%m/%d/%Y %H:%M:%S')
+    #         start_date = datetime.date(year=d.year, month=d.month, day=d.day).isoformat()
+    #     except Exception as e:
+    #         logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", nsrId, udir_tags['opprettetDato'], e)
             
     if name != '':
         #assert name == udir_tags['navn'], 'name="%s", udir_tags["navn"]="%s"' % (name, udir_tags['navn']) # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
@@ -185,8 +189,8 @@ def create_osmtags(udir_tags, operator='', name='', cache_dir='data'):
                 'operator:type': operator_type,
                 'min_age': min_age,
                 'max_age': max_age,
-                'capacity': capacity,
-                'start_date': start_date}
+                'capacity': capacity}
+                #'start_date': start_date}
     osm_tags.update(tags_contact)
     
     # cleanup, remove empty values and convert to string.
@@ -276,24 +280,10 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, d
     
     return osm, osm_familiebarnehage, discontinued
 
-def to_kommunenr(arg):
-    """Allow flexible format for kommune-name, by either number or name"""
-    nr2name, name2nr = kommunenummer()
-    try:
-        nr = int(arg)
-    except ValueError:          # not int
-        try:
-            nr = name2nr[arg]
-        except KeyError:
-            raise KeyError('Kommune-name "%s" not recognized' % arg)
-
-    if not nr in nr2name:
-        raise ValueError('Kommune-nr %s not found in kommunenummer.py, feel free to correct the file' % nr)
-    
-    return '{0:04d}'.format(nr)
 
 if __name__ == '__main__':
-    import argparse_util
+    from utility_to_osm import argparse_util
+
     parser = argparse_util.get_parser('''Converts norwegian kindergarten-data from 
 "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap. 
 Specify either by --nbr_id or by --kommune.''',

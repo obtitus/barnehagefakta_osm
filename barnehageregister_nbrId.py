@@ -11,8 +11,8 @@ logger = logging.getLogger('barnehagefakta.barnehageregister_nbrId')
 # non-standard imports
 from bs4 import BeautifulSoup
 # This project
-import file_util
-import gentle_requests
+from utility_to_osm import file_util
+from utility_to_osm import gentle_requests
 request_session = gentle_requests.GentleRequests()
 
 def get(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):

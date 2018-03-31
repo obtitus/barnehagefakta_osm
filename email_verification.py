@@ -8,8 +8,8 @@ logger = logging.getLogger('barnehagefakta.email_verification')
 
 # This project
 from mypasswords import mailboxlayer_access_key
-import file_util
-import gentle_requests
+from utility_to_osm import file_util
+from utility_to_osm import gentle_requests
 request_session = gentle_requests.GentleRequests()
 
 N_max = 25                     # avoid getting close to the mailbox limit
