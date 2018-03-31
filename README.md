@@ -38,6 +38,11 @@ OSM area and data.udir dataset. The output is an .osm file which can be reviewed
 * osmapis from https://github.com/xificurk/osmapis
 
   `git clone git@github.com:xificurk/osmapis.git`
+
+* Helper library: utility_to_osm
+
+  `git clone git@github.com:obtitus/py_import_utility_to_osm.git;`
+  `mv py_import_utility_to_osm utility_to_osm`
   
 * requests (http://www.python-requests.org)
 
