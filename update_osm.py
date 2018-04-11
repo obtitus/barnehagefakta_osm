@@ -17,11 +17,13 @@ try:
 except ImportError:
     logger.warning('no datadiff found, no pretty dictionary diff for you.')
     datadiff = None
+
+#
+import utility_to_osm.gentle_requests as gentle_requests
+import utility_to_osm.file_util as file_util
     
 # This project
-import gentle_requests
 request_session = gentle_requests.GentleRequests()
-import file_util
 import osmapis_nsrid as osmapis
 try:
     import mypasswords
@@ -183,6 +185,7 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
     # get keys that are in both updated and outdated
     s = set(osm_updated.tags.keys())
     s.intersection_update(osm_outdated.tags.keys())
+    ignored_capacity_change = False
     for key in s:
         # NBR has modified a value
         if osm_updated.tags[key] != osm_outdated.tags[key]:
@@ -191,29 +194,40 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
                 if osm_element.tags[key] == osm_updated.tags[key]:
                     logger.info('NBR has modified %s="%s" to "%s", but osm already has the value "%s"',
                                    key, osm_outdated.tags[key], osm_updated.tags[key], osm_element.tags[key])
+                    #osm_element.tags[key] = osm_updated.tags[key]
                     continue
                 if osm_element.tags[key] != osm_outdated.tags[key]:
                     logger.warning('Unresolved conflict, NBR has modified %s="%s" to "%s", but osm has the value "%s"',
                                    key, osm_outdated.tags[key], osm_updated.tags[key], osm_element.tags[key])
+                    #osm_element.tags[key] = osm_updated.tags[key]
                     return False
                 else: # Else: osm matches the old value, i.e. not tampered with
+                    # Check for small changes in capacity (i.e. don't care)
+                    if key == 'capacity' and abs(int(osm_outdated.tags[key]) - int(osm_updated.tags[key])) < 10:
+                        logger.info('Ignoring small capacity change %s=%s to %s', key, osm_outdated.tags[key], osm_updated.tags[key])
+                        ignored_capacity_change = True # This moves: osm_element.tags[key] = osm_updated.tags[key], to only happen if we are actually doing an update
+                        continue
+                        
                     logger.info('Modifying %s="%s" to "%s"', key, osm_outdated.tags[key], osm_updated.tags[key])
                     osm_element.tags[key] = osm_updated.tags[key]
                     
             else:
                 logger.warning('Unresolved conflict, NBR has modified %s="%s" to "%s", but osm does not have this key',
                                key, osm_outdated.tags[key], osm_updated.tags[key])
+                #osm_element.tags[key] = osm_updated.tags[key]
                 return False
 
     # fixme: Re-write, do not return False all over the place?
     
     if osm_element_tags_original != osm_element.tags:
+        if ignored_capacity_change:
+            osm_element.tags['capacity'] = osm_updated.tags['capacity']
         return 'update'
     else:
         return True
 
 if __name__ == '__main__':
-    import argparse_util
+    import utility_to_osm.argparse_util as argparse_util
     parser = argparse_util.get_parser('Keeps OSM objects with no-barnehage:nsrid=* updated if there are changes in the NBR data. Does not overwrite modified OSM data.')
     parser.add_argument('--data_dir', default='data',
                         help='Specify directory for .osm files, defaults to data/')

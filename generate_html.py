@@ -15,7 +15,7 @@ from jinja2 import Template
 # This project
 import update_osm
 import osmapis_nsrid as osmapis
-from kommunenummer import kommunenummer
+from utility_to_osm.kommunenummer import kommunenummer
 
 from htmldiff import htmldiff
 def my_htmldiff(a, b):
@@ -323,7 +323,7 @@ def get_osm_data():
     return osm
 
 if __name__ == '__main__':
-    import argparse_util
+    from utility_to_osm import argparse_util
     parser = argparse_util.get_parser('Looks for <data_dir>/<kommune_id>/*.osm files and generates html for http://obtitus.github.io/barnehagefakta_osm_data/. The site is generated in the current directory by default and assumes template.html and index_template.html exists in the current directory.')
     parser.add_argument('--data_dir', default='data',
                         help='Specify directory for .osm files, defaults to data/')
