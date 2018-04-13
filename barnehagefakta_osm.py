@@ -17,6 +17,7 @@ from barnehageregister_nbrId import get_kommune, update_kommune
 from utility_to_osm.kommunenummer import kommunenummer, to_kommunenr
 from email_verification import mailbox_check_valid_cached
 from utility_to_osm import file_util
+from name_cleanup import name_cleanup
 
 # global
 reg_phone = re.compile('((0047)?|(\+47)?)([- _0-9]+)')
@@ -101,7 +102,8 @@ def add_country_code(input_dict, key, inplace=False):
     
     return d
 
-def create_osmtags(udir_tags, operator='', name='', cache_dir='data'):
+def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
+                   name_cleanup_filehandle=None):
     # See http://data.udir.no/baf/json-beskrivelse.html for a full list of expected keys
     nsrId = int(udir_tags['nsrId']) # ensure int
     
@@ -173,17 +175,17 @@ def create_osmtags(udir_tags, operator='', name='', cache_dir='data'):
     #     except Exception as e:
     #         logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", nsrId, udir_tags['opprettetDato'], e)
             
-    if name != '':
-        #assert name == udir_tags['navn'], 'name="%s", udir_tags["navn"]="%s"' % (name, udir_tags['navn']) # name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
-        if name != udir_tags['navn']:
+    if udir_name != '':
+        #assert udir_name == udir_tags['navn'], 'udir_name="%s", udir_tags["navn"]="%s"' % (udir_name, udir_tags['navn']) # udir_name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
+        if udir_name != udir_tags['navn']:
             logger.warning(('The name from https://nbr.udir.no/enhet/{id} '
                             'differ from http://barnehagefakta.no/api/barnehage/{id},'
                             '"{nbr}" != "{barnehagefakta}"').format(
-                                id=nsrId, barnehagefakta=udir_tags['navn'].encode('utf8'), nbr=name.encode('utf8')))
-        
+                                id=nsrId, barnehagefakta=udir_tags['navn'].encode('utf8'), nbr=udir_name.encode('utf8')))
+
     osm_tags = {'amenity': 'kindergarten',
                 'name': udir_tags['navn'],
-                'no-barnehage:nsrid': udir_tags['nsrId'], # key-name suggestions?
+                'no-barnehage:nsrid': udir_tags['nsrId'],
 #                'opening_hours': opening_hours,
                 'operator': operator,
                 'operator:type': operator_type,
@@ -192,7 +194,10 @@ def create_osmtags(udir_tags, operator='', name='', cache_dir='data'):
                 'capacity': capacity}
                 #'start_date': start_date}
     osm_tags.update(tags_contact)
-    
+
+    # Name cleanup
+    osm_tags['name'] = name_cleanup(osm_tags['name'], name_cleanup_filehandle)
+        
     # cleanup, remove empty values and convert to string.
     remove_empty_values(osm_tags)
     values_to_str(osm_tags)
@@ -208,7 +213,8 @@ def create_osmtags(udir_tags, operator='', name='', cache_dir='data'):
     logger.debug('%d, Created node %s', nsrId, node)
     return node, udir_tags['type']
 
-def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, discontinued=None, save=True, global_cache_dir='data'):
+def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, discontinued=None, save=True,
+         global_cache_dir='data', name_cleanup_filehandle=None):
     """if osm and osm_familiebarnehage are given, they will be appended to.
     Ensure save is True to save the files (only needed on the last iteration)"""
     
@@ -221,7 +227,7 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, d
 
     if osm_familiebarnehage is None:
         osm_familiebarnehage = osmapis.OSM()
-    
+
     visited_ids = set()
     if discontinued is None:
         discontinued = list()
@@ -243,7 +249,8 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, d
         try:
             udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
             if udir_tags == {}: continue
-            node, barnehage_type = create_osmtags(udir_tags, operator=operator, name=name, cache_dir=global_cache_dir)
+            node, barnehage_type = create_osmtags(udir_tags, operator=operator, udir_name=name, cache_dir=global_cache_dir,
+                                                  name_cleanup_filehandle=name_cleanup_filehandle)
 
             if barnehage_type == u'Familiebarnehage':
                 osm_familiebarnehage.add(node)
@@ -317,6 +324,10 @@ Specify either by --nbr_id or by --kommune.''',
 
     output_filename = args.output_filename
     osm, osm_f, discontinued = None, None, None
+
+    name_log_filename = os.path.join(args.cache_dir, 'name_log.csv')
+    name_cleanup_filehandle = file_util.open_utf8(name_log_filename, 'w')
+    name_cleanup_filehandle.write('"NBR name", "new name"\n')
     
     if args.kommune:      # list of kommuner given
         if args.kommune == ['ALL']:
@@ -338,14 +349,19 @@ Specify either by --nbr_id or by --kommune.''',
 
             if args.output_filename is None:
                 output_filename = os.path.join(cache_dir, '%s_barnehagefakta.osm' % kommune_id)
-                main(k, output_filename, cache_dir, global_cache_dir=args.cache_dir)
+                main(k, output_filename, cache_dir, global_cache_dir=args.cache_dir,
+                     name_cleanup_filehandle=name_cleanup_filehandle)
             else:
                 osm, osm_f, discontinued = main(k, output_filename, cache_dir, osm, osm_f,
                                                 discontinued=discontinued,
                                                 save=kommune_id == kommunenummer[-1],
-                                                global_cache_dir=args.cache_dir) # hack
+                                                name_cleanup_filehandle=name_cleanup_filehandle,
+                                                global_cache_dir=args.cache_dir)
                 
     if args.nbr_id:
         if args.output_filename is None:
             output_filename = 'barnehagefakta.osm'
-        main(args.nbr_id, output_filename, args.cache_dir, global_cache_dir=args.cache_dir)
+        main(args.nbr_id, output_filename, args.cache_dir, global_cache_dir=args.cache_dir,
+             name_cleanup_filehandle=name_cleanup_filehandle)
+
+    name_cleanup_filehandle.close()
