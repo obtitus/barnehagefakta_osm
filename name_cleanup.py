@@ -6,7 +6,8 @@ import logging
 logger = logging.getLogger('barnehagefakta.name_cleanup')
 
 def name_cleanup(name, log_filehandle=None):
-    u"""
+    u"""Attempt at sanitizing the name from ssr by mainly forcing sane capitalization and removing company designations AS/SA/...
+    Doctest:
     >>> name_cleanup('')
     ''
     >>> name_cleanup('Hei')
@@ -47,6 +48,10 @@ def name_cleanup(name, log_filehandle=None):
     'Foo FUS SFO I / II KFUM KFUK'
     >>> name_cleanup('Hei montessori')
     'Hei Montessori'
+    >>> name_cleanup('Hem barnehage V/sidsel Berg Sjulstad')
+    'Hem barnehage Sidsel Berg Sjulstad'
+    >>> name_cleanup('Hei Familiebarnehage Ved Tove Baa')
+    'Hei familiebarnehage Tove Baa'
     """
     #name = name.decode('utf8')
     old_name = name
@@ -58,7 +63,7 @@ def name_cleanup(name, log_filehandle=None):
     name = name.replace('Bhg', 'barnehage')
     
     # remove AS, Sa
-    for company_short in('AS', 'Sa', 'A/s', 'Da', 'Ba', 'Ans', 'Ltd', 'Ikb'):
+    for company_short in('AS', 'Sa', 'A/s', 'Da', 'Ba', 'Ans', 'Ltd', 'Ikb', 'Ved'):
         # company_short at end of string with space in front:
         reg1 = re.search('([\s]%s$)' % company_short, name, flags=re.IGNORECASE|re.UNICODE)
         # company_short with spaces on both sides:
@@ -100,10 +105,13 @@ def name_cleanup(name, log_filehandle=None):
     capitalize = ('montessori', 'steinerbarnehage')
     remove = ('Ved', )
     for word in name.split():
-        if word.lower() in abbrevs:
+        word_low = word.lower()
+        if word_low in abbrevs:
             word = word.upper()
-        elif word.lower() in capitalize:
+        elif word_low in capitalize:
             word = word.capitalize()
+        elif word_low.startswith('v/'):
+            word = word[2:].capitalize()
         elif word in remove:
             continue
         else:
