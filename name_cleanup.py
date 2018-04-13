@@ -52,6 +52,10 @@ def name_cleanup(name, log_filehandle=None):
     'Hem barnehage Sidsel Berg Sjulstad'
     >>> name_cleanup('Hei Familiebarnehage Ved Tove Baa')
     'Hei familiebarnehage Tove Baa'
+    >>> name_cleanup('Nlm Hei BaRnehage')
+    'NLM Hei barnehage'
+    >>> name_cleanup("Nlm Barnehagene AS Avd Tryggheim Barnehage Halden")
+    'NLM barnehagene avd. Tryggheim barnehage Halden'
     """
     #name = name.decode('utf8')
     old_name = name
@@ -60,14 +64,22 @@ def name_cleanup(name, log_filehandle=None):
     if name == '':
         return ''
 
-    name = name.replace('Bhg', 'barnehage')
+    # Replace shorthands
+    barnehage_shorthands = ('Bhg', 'Barne')
+    for short in barnehage_shorthands:
+        reg1 = re.search('([\s]%s$)' % short, name, flags=re.IGNORECASE|re.UNICODE)
+        reg2 = re.search('([\s]%s[\s])' % short, name, flags=re.IGNORECASE|re.UNICODE)
+        if reg1:
+            name = name.replace(reg1.group(1), 'barnehage')
+        if reg2:
+            name = name.replace(reg2.group(1), 'barnehage')
     
     # remove AS, Sa
-    for company_short in('AS', 'Sa', 'A/s', 'Da', 'Ba', 'Ans', 'Ltd', 'Ikb', 'Ved'):
+    for company_short in('AS', 'Sa', 'A/s', 'Da', 'Ba', 'Ans', 'Ltd', 'Ikb', 'Ved', 'Si'):
         # company_short at end of string with space in front:
         reg1 = re.search('([\s]%s$)' % company_short, name, flags=re.IGNORECASE|re.UNICODE)
         # company_short with spaces on both sides:
-        reg2 = re.search('([\s]%s[\s])' % company_short, name, flags=re.IGNORECASE|re.UNICODE)        
+        reg2 = re.search('([\s]%s[\s])' % company_short, name, flags=re.IGNORECASE|re.UNICODE)
         if reg1:
             name = name.replace(reg1.group(1), '')
         if reg2:
@@ -77,8 +89,7 @@ def name_cleanup(name, log_filehandle=None):
 
     # Fixme: learn reg-replace?
     # lowercase for barnehageenhet, naturbarnehage, oppvekstsenter, familiebarnehage, ...
-    reg = re.search('([\w]*barnehage[\w]*)', name, flags=re.IGNORECASE|re.UNICODE)
-    if reg:
+    for reg in re.finditer('([\w]*barnehage[\w]*)', name, flags=re.IGNORECASE|re.UNICODE):
         name = name.replace(reg.group(1), reg.group(1).lower())
 
     # Lower case for a bunch of other cases
@@ -117,7 +128,10 @@ def name_cleanup(name, log_filehandle=None):
         else:
             word = word[0] + word[1:].lower() # e.g. LinnÉa -> Linnéa
         new_name.append(word)
-    new_name[0] = new_name[0].capitalize()
+
+    if new_name[0].lower() not in abbrevs:
+        new_name[0] = new_name[0].capitalize()
+    
     name = " ".join(new_name)
     #name = name[0].upper() + name[1:]
 
@@ -133,5 +147,5 @@ def name_cleanup(name, log_filehandle=None):
 
 if __name__ == '__main__':
     import doctest
-    doctest.testmod(verbose=True)
+    doctest.testmod()
     
