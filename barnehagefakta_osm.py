@@ -9,28 +9,32 @@ open = codecs.open
 import datetime
 import logging
 logger = logging.getLogger('barnehagefakta')
-# Non standard
-import osmapis
 # This project:
 from barnehagefakta_get import barnehagefakta_get, NotFoundException
 from barnehageregister_nbrId import get_kommune, update_kommune
 from utility_to_osm.kommunenummer import kommunenummer, to_kommunenr
-from email_verification import mailbox_check_valid_cached
+#from email_verification import mailbox_check_valid_cached
 from utility_to_osm import file_util
 from name_cleanup import name_cleanup
+from utility_to_osm.osmapis import osmapis
+
+try:
+    basestring
+except NameError:               # python3
+    basestring = str
 
 # global
 reg_phone = re.compile('((0047)?|(\+47)?)([- _0-9]+)')
 
 def remove_empty_values(dct):
     """Remove all dictionary items where the value is '' or None."""
-    for key in dct.keys():
+    for key in list(dct.keys()):
         if dct[key] in ('', None):
             del dct[key]
 
 def values_to_str(dct):
     """Convert all values to strings"""
-    for key in dct.keys():
+    for key in list(dct.keys()):
         if isinstance(dct[key], bool):
             if dct[key]:
                 dct[key] = 'yes'
@@ -50,28 +54,28 @@ def parse_apningstid(apningstid):
         logger.warning('Error when parsing apningstid = "%s". %s', apningstid, e)
         return None
 
-def remove_invalid_email(input_dict, key, inplace=False, cache_dir='data'):
-    '''Does nothing if key is not in input_dict, otherwise, assume key points to a
-    email address that should be checked. If invalid, the address is removed from input_dict.
-    Uses the https://mailboxlayer.com/ api
-    '''
-    if key not in input_dict:
-        return input_dict
+# def remove_invalid_email(input_dict, key, inplace=False, cache_dir='data'):
+#     '''Does nothing if key is not in input_dict, otherwise, assume key points to a
+#     email address that should be checked. If invalid, the address is removed from input_dict.
+#     Uses the https://mailboxlayer.com/ api
+#     '''
+#     if key not in input_dict:
+#         return input_dict
     
-    if inplace:
-        d = input_dict
-    else:
-        d = dict(input_dict)
+#     if inplace:
+#         d = input_dict
+#     else:
+#         d = dict(input_dict)
 
-    email_cache_filename = os.path.join(cache_dir, 'email_cache.json') 
-    valid = mailbox_check_valid_cached(d[key], email_cache_filename)
-    if valid in (True, 'unkown', 'recheck'):
-        pass
-    else:
-        logger.warning('Possibly an invalid email: "%s -> %s", removing', d[key], valid)
-        del d[key]
+#     email_cache_filename = os.path.join(cache_dir, 'email_cache.json') 
+#     valid = mailbox_check_valid_cached(d[key], email_cache_filename)
+#     if valid in (True, 'unkown', 'recheck'):
+#         pass
+#     else:
+#         logger.warning('Possibly an invalid email: "%s -> %s", removing', d[key], valid)
+#         del d[key]
     
-    return d
+#     return d
 
     
 def add_country_code(input_dict, key, inplace=False):
@@ -126,11 +130,6 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
     # opening_hours combined with udir_tags['type'] == 'åpen' could be moderately useful on the go.
     # add udir_tags['type'] to description:no ?
 
-    # Consider parsing udir_tags['besoksAdresse']['adresselinje'] into addr:housenumber, addr:street
-    # this could help when merging the data, since lat/lon is often incorrect.
-    # addr_postcode = udir_tags['besoksAdresse']['postnr']
-    # addr_city = udir_tags['besoksAdresse']['poststed']
-
     #'fee': udir_tags['kostpenger'] != 0, # needs to be combined with 'Pris for opphold', which is not present in the dataset
     
     operator_type = ''
@@ -152,10 +151,23 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
             logger.warning('%d Unable to parse "%s" into min and max age, %s', nsrId, age, e)
 
     tags_contact = dict()
-    if udir_tags['kontaktinformasjon'] is not None:
-        tags_contact = {'contact:website': udir_tags['kontaktinformasjon']['url'],
-                        'contact:phone': udir_tags['kontaktinformasjon']['telefon'],
-                        'contact:email': udir_tags['kontaktinformasjon']['epost']}
+    address = ''
+    udir_contact = udir_tags['kontaktinformasjon']
+    if udir_contact is not None:
+        tags_contact = {'contact:website': udir_contact['url']}
+        # Decided to remove phone and email due to privacy concerns, as these are often private email and phone numbers.
+                        #'contact:phone': udir_contact['telefon'],
+                        #'contact:email': udir_contact['epost']}
+        # Consider parsing udir_tags['besoksAdresse']['adresselinje'] into addr:housenumber, addr:street
+        try:
+            address_line = udir_contact['besoksAdresse']['adresselinje']
+            addr_postcode = udir_contact['besoksAdresse']['postnr']
+            addr_city = udir_contact['besoksAdresse']['poststed']
+            address = '%s, %s %s' % (address_line, addr_postcode, addr_city) #' '.join((address_line, addr_postcode, addr_city))
+        except Exception as e:
+            address = ''
+            logger.warning('Failed to get address %s' % e)
+        
     capacity = ''
     if udir_tags['indikatorDataBarnehage'] is not None:
         antallBarn = udir_tags['indikatorDataBarnehage']['antallBarn']
@@ -191,7 +203,8 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
                 'operator:type': operator_type,
                 'min_age': min_age,
                 'max_age': max_age,
-                'capacity': capacity}
+                'capacity': capacity,
+                'ADDRESS': address}
                 #'start_date': start_date}
     osm_tags.update(tags_contact)
 
@@ -206,7 +219,7 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
     add_country_code(osm_tags, key='contact:phone', inplace=True)
 
     # check that the email is valid
-    remove_invalid_email(osm_tags, key='contact:email', inplace=True, cache_dir=cache_dir)
+    #remove_invalid_email(osm_tags, key='contact:email', inplace=True, cache_dir=cache_dir)
     
     # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)

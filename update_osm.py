@@ -28,8 +28,8 @@ import osmapis_nsrid as osmapis
 try:
     import mypasswords
 except ImportError:
-    print 'No mypasswords.py file found'
-    print 'Please create mypasswords.py, please see mypasswords_template.py'
+    print('No mypasswords.py file found')
+    print('Please create mypasswords.py, please see mypasswords_template.py')
 
 from barnehagefakta_osm import create_osmtags
 
@@ -69,7 +69,7 @@ def find_all_nsrid_osm_elements(osm, nsrid=None):
     the result might contain osmapis.Node, osmapis.Way or osmapis.Relation.
     Optionally only yield those with barnehage:nsrid=nsrid"""
     for elem in osm:
-        #print 'elem, tags', elem.tags, 'attribs', elem.attribs
+        #print('elem, tags', elem.tags, 'attribs', elem.attribs)
         if 'no-barnehage:nsrid' in elem.tags:
             if nsrid is not None and elem.tags['no-barnehage:nsrid'] != nsrid:
                 continue
@@ -111,20 +111,20 @@ def update_osm(original, modified, username=None, password=None, comment=''):
         password = mypasswords.osm_password
         
     osc = osmapis.OSC.from_diff(original, modified)
-    print 'DIFF:', osc
+    print('DIFF: %s' % osc)
     user_input = raw_input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete>>[y] ')
     if user_input.lower() in ('y', ''):
         update = True
     elif user_input.lower() in ('s', 'n'):
-        print 'Skipping.'
+        print('Skipping.')
         return False
     elif user_input.lower() in ('d', 'delete'):
-        print 'Deleting'
+        print('Deleting')
         return True
     elif user_input.lower() in ('q', 'e'):
         exit(1)
     else:
-        print 'unkown user_input, breaking.', repr(user_input)
+        print('unkown user_input, breaking.', repr(user_input))
         exit(1)
 
     
@@ -148,6 +148,12 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
     if osm_outdated.attribs['lat'] != osm_updated.attribs['lat'] or\
        osm_outdated.attribs['lon'] != osm_updated.attribs['lon']:
         logger.warning('Lat/lon has changed, it is advisable to check if this is an improvement in the NBR data or if the kindergarden actually has moved')
+    try:
+        if osm_outdated.tags['doNotImportAddress'] != osm_updated.tags['doNotImportAddress']:
+            logger.warning('Address has changed, it is advisable to check if this is an improvement in the NBR data or if the kindergarden actually has moved')
+            osm_outdated.tags['doNotImportAddress'] = osm_updated.tags['doNotImportAddress']
+    except KeyError:
+        pass
 
     if osm_outdated.tags == osm_updated.tags: # all tags we care about are equal, so mark as resolved
         logger.info('All relevant tags are equal, conflict resolved.')
@@ -301,7 +307,7 @@ if __name__ == '__main__':
         # r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=%d]%s' % (int(nbr_id), bbox_scandinavia))
         # xml = r.content
         # xml = reply_way
-        #print 'xml', xml
+        #print('xml', xml)
 
         osm_original = osmapis.OSMnsrid.from_xml(xml)
         osm = osmapis.OSMnsrid.from_xml(xml)
@@ -336,7 +342,7 @@ if __name__ == '__main__':
         else:
             logger.error('OSM contains multiple nodes/ways/relations with the tag no-barnehage:nsrid=%s, please fix this.', nbr_id)
             for ix, e in enumerate(osm_elements):
-                print 'DUPLICATE %d: %s\n"%s"' % (ix, e.tags, e)
+                print('DUPLICATE %d: %s\n"%s"' % (ix, e.tags, e))
             exit(1)
 
     # Summary

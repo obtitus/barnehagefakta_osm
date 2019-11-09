@@ -1,9 +1,10 @@
 import logging
 logger = logging.getLogger('barnehagefakta.osmapis_nsrid')
 
+from utility_to_osm.osmapis import osmapis
 from osmapis import *
 
-class OSMnsrid(OSM):
+class OSMnsrid(osmapis.OSM):
     """Adds the container nsrids to osmpais.OSM, 
     where the dictionary key is the no-barnehage:nsrid value
     and the value is a list (hopefully length 1) with a 
@@ -20,11 +21,11 @@ class OSMnsrid(OSM):
         if 'no-barnehage:nsrid' in item.tags:
             key = item.tags['no-barnehage:nsrid']
             if key in self.nsrids:
-                logger.error('Multiple objects with no-barnehage:nsrid found please fix this, %s, %s' % (item, self.nsrids[key]))
+                logger.error('Multiple objects with no-barnehage:nsrid found please fix this, %s, %s', item, self.nsrids[key])
                 self.nsrids[key].append(item)
             else:
                 self.nsrids[key] = [item]
-        
+
         return super(OSMnsrid, self).add(item)
 
     def discard(self, item):
@@ -34,4 +35,4 @@ class OSMnsrid(OSM):
             
         return super(OSMnsrid, self).discard(item)
 
-wrappers["osm"] = OSMnsrid
+osmapis.wrappers["osm"] = OSMnsrid

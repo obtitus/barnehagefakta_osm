@@ -144,4 +144,4 @@ def mailbox_check_valid_cached(email, email_cache_filename):
     return valid
 
 if __name__ == '__main__':
-    print mailbox_check_valid('obtitus@gmail.com')
+    print(mailbox_check_valid('obtitus@gmail.com'))

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Standard python imports
 import os
+import time
 import json
 from datetime import datetime
 import pprint
@@ -72,7 +73,15 @@ def barnehagefakta_get_json(nbr_id, old_age_days=5, cache_dir='data', keep_histo
     if r.status_code == 200:
         ret = r.content
     elif r.status_code == 404:
-        ret = '404'
+        # 404 seems to occur very frequently, try again and ensure we still get 404
+        time.sleep(1)
+        r = request_session.get(url)
+        if r.status_code != 404:
+            logger.error('Seeing sporadic 404,%s for url = %s', r.status_code, url)
+            if r.status_code == 200:
+                ret = r.content # I guess we are OK after all...
+        else:
+            ret = '404'
     else:
         logger.error('Unknown status code %s', r.status_code)
         
@@ -121,6 +130,6 @@ if __name__ == '__main__':
 
     if args.nbr_id:             # list of ids given
         for nbr_id in args.nbr_id:
-            print 'Getting', nbr_id
+            print('Getting', nbr_id)
             barnehagefakta_get(nbr_id, cache_dir=args.cache_dir)
 

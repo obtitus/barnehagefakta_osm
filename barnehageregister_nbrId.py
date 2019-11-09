@@ -15,6 +15,11 @@ from utility_to_osm import file_util
 from utility_to_osm import gentle_requests
 request_session = gentle_requests.GentleRequests()
 
+try:
+    basestring
+except NameError:               # python3
+    basestring = str
+
 def get(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):
     url = 'https://nbr.udir.no/sok/sokresultat?FritekstSok=&NedlagteEnheter=false&AktiveEnheter=true&AktiveEnheter=false&Eiere=false'
     url += '&Kommune.Id={0:s}'.format(kommune_id)
@@ -115,7 +120,7 @@ def get_raw(table):
 
 def parse(content):
     if content is None:
-        return 
+        return
 
     # Sanity check the data
     expected_data = {'nbrId': int,
@@ -149,7 +154,7 @@ def parse(content):
         yield raw_data
 
 def all_pages(kommune_id):
-    for page_nr in xrange(1, 1024): # max pages (Oslo currently has 832)
+    for page_nr in range(1, 1024): # max pages (Oslo currently has 832)
         content = get(kommune_id, page_nr=page_nr) # WARNING: passing page_nr=0 returns the same as page_nr=1
         data = list(parse(content))
         if len(data) == 0:      # requesting past the page number does not raise any errors, but returns an empty list

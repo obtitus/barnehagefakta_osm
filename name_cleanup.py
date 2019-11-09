@@ -56,6 +56,12 @@ def name_cleanup(name, log_filehandle=None):
     'NLM Hei barnehage'
     >>> name_cleanup("Nlm Barnehagene AS Avd Tryggheim Barnehage Halden")
     'NLM barnehagene avd. Tryggheim barnehage Halden'
+    >>> name_cleanup('Lian Naturbarnehage')
+    'Lian naturbarnehage'
+    >>> name_cleanup('Slettebakken Menighets barnehage AS')
+    'Slettebakken menighets barnehage'
+    >>> print(name_cleanup(u'Tiriltoppen barnehage Nøtterøy AS'))
+    Tiriltoppen barnehage Nøtterøy
     """
     #name = name.decode('utf8')
     old_name = name
@@ -112,7 +118,7 @@ def name_cleanup(name, log_filehandle=None):
         name = name.replace(reg.group(1), "avd.")
         
     new_name = []
-    abbrevs = ('fus', 'sfo', 'nlm', 'kfum', 'kfuk')
+    abbrevs = ('fus', 'sfo', 'nlm', 'kfum', 'kfuk', 'hf')
     capitalize = ('montessori', 'steinerbarnehage')
     remove = ('Ved', )
     for word in name.split():
@@ -141,7 +147,7 @@ def name_cleanup(name, log_filehandle=None):
     if name != old_name:
         logger.debug('name cleanup %s -> %s', old_name, name)
 
-    if log_filehandle is not None:
+    if log_filehandle is not None and old_name != name:
         log_filehandle.write('"%s", "%s"\n' % (old_name, name))
     return name
 

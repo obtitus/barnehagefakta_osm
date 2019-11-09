@@ -62,9 +62,12 @@ def get_lat_lon(osm, osm_data):
     lat, lon = node.attribs['lat'], node.attribs['lon']
     return lat, lon
 
-def create_pre(dict1, dict_compare, mark_missing_key=True):
+def create_pre(dict1, dict_compare, mark_missing_key=True, ignore_keys=('doNotImportAddress', )):
     tags = '<pre>'
     for key, value in sorted(dict1.items()):
+        if key in ignore_keys:
+            continue
+        
         missing_key = key not in dict_compare
         diff_value = not(missing_key) and dict_compare[key] != dict1[key]
         if diff_value:
@@ -319,7 +322,15 @@ def get_osm_data():
     xml = update_osm.overpass_nsrid()
     osm = osmapis.OSMnsrid.from_xml(xml)
     # osm_elements = list(update_osm.find_all_nsrid_osm_elements(osm))
-    print 'Overpass returned', len(osm.nsrids), 'objects'#, osm.nsrids
+    print('Overpass returned', len(osm.nsrids), 'objects')#, osm.nsrids
+
+    for item in osm:
+        if 'doNotImportAddress' in item.tags:
+            err_msg = 'Found doNotImportAddress = %s on no-barnehage:nsrid=%s, remove key!' % (item.tags['doNotImportAddress'],
+                                                                                               item.nsrids[key])
+            logger.error(err_msg)
+            raise ValueError(err_msg)
+        
     return osm
 
 if __name__ == '__main__':
