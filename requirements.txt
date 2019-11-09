@@ -1,0 +1,7 @@
+requests
+bs4
+lxml
+datadiff
+jinja2
+-e git://github.com/cygri/htmldiff.git#egg=htmldiff
+-e git@github.com:obtitus/py_import_utility_to_osm.git
