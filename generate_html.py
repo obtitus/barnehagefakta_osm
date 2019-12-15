@@ -12,10 +12,12 @@ import os.path
 import logging
 logger = logging.getLogger('barnehagefakta.generate_html')
 from jinja2 import Template
+
 # This project
 import update_osm
 import osmapis_nsrid as osmapis
 from utility_to_osm.kommunenummer import kommunenummer
+from utility_to_osm.generate_html_history_chart import render_history_chart
 
 from htmldiff import htmldiff
 def my_htmldiff(a, b):
@@ -62,14 +64,15 @@ def get_lat_lon(osm, osm_data):
     lat, lon = node.attribs['lat'], node.attribs['lon']
     return lat, lon
 
-def create_pre(dict1, dict_compare, mark_missing_key=True, ignore_keys=('doNotImportAddress', )):
+def create_pre(dict1, dict_compare, mark_missing_key=True, ignore_keys=('ADDRESS', )):
     tags = '<pre>'
     for key, value in sorted(dict1.items()):
-        if key in ignore_keys:
-            continue
+#        if key in ignore_keys:
+#            continue
         
         missing_key = key not in dict_compare
-        diff_value = not(missing_key) and dict_compare[key] != dict1[key]
+        ignore = key in ignore_keys
+        diff_value = not(ignore) and not(missing_key) and dict_compare[key] != dict1[key]
         if diff_value:
             a, b = dict_compare[key], dict1[key]
             value = my_htmldiff(a, b)
@@ -78,7 +81,7 @@ def create_pre(dict1, dict_compare, mark_missing_key=True, ignore_keys=('doNotIm
         if diff_value:
             line = '<diff_value>%s</diff_value>' % line
 
-        if mark_missing_key and missing_key:
+        if mark_missing_key and missing_key and not(ignore):
             line = '<missing_key>%s</missing_key>' % line
             
         tags += line
@@ -202,7 +205,11 @@ def create_rows(osm, data):
     return table, count_osm, count_duplicate_osm
         #yield row
 
-def main(osm, data_dir='data', root_output='', template='template.html', index_template='index_template.html'):
+def main(osm, data_dir='data', root_output='',
+         root=''):
+
+    index_template = os.path.join(root, 'templates', 'index_template.html')
+    template = os.path.join(root, 'templates', 'kommune_page_template.html')
     
     with open_utf8(template) as f:
         template = Template(f.read())
@@ -306,10 +313,7 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
     Trykk på en av radene i tabellen under for å vise barnehage-data for kommunen.
     </p>
     """
-    page = index_template.render(info=info, table=index_table, bottom_row=total)
-    index = os.path.join(root_output, 'index.html')
-    with open_utf8(index, 'w') as output:
-        output.write(page)
+    chart = render_history_chart(root)
 
     # dump progress to csv
     today = datetime.utcnow()
@@ -317,6 +321,13 @@ def main(osm, data_dir='data', root_output='', template='template.html', index_t
     td_s = td.total_seconds()
     with open('history.csv', 'a') as f:
         f.write('{0},{1},{2}\n'.format(td_s, total_nbr, total_osm))
+
+    
+    page = index_template.render(info=info, table=index_table, bottom_row=total, chart=chart, now=td_s)
+    index = os.path.join(root_output, 'index.html')
+    with open_utf8(index, 'w') as output:
+        output.write(page)
+
 
 def get_osm_data():
     xml = update_osm.overpass_nsrid()
@@ -335,15 +346,11 @@ def get_osm_data():
 
 if __name__ == '__main__':
     from utility_to_osm import argparse_util
-    parser = argparse_util.get_parser('Looks for <data_dir>/<kommune_id>/*.osm files and generates html for http://obtitus.github.io/barnehagefakta_osm_data/. The site is generated in the current directory by default and assumes template.html and index_template.html exists in the current directory.')
+    parser = argparse_util.get_parser('Looks for <data_dir>/<kommune_id>/*.osm files and generates html for http://obtitus.github.io/barnehagefakta_osm_data/. The site is generated in the current directory by default and assumes template.html and index_template.html exists in the template directory.')
     parser.add_argument('--data_dir', default='data',
                         help='Specify directory for .osm files, defaults to data/')
-    parser.add_argument('--output_dir', default='.',
-                        help="Specify output directory, defaults to current directory")        
-    parser.add_argument('--template', default='template.html',
-                        help="Specify template file for each of the kommune pages, defaults to template.html")
-    parser.add_argument('--index_template', default='index_template.html',
-                        help="Specify template file for index.html, defaults to index_template.html")
+    parser.add_argument('--root', default='.',
+                        help="Specify input/output directory, defaults to current directory. Expects a templates folder with required html and javascript templates")
     parser.add_argument('--no-overpass', default=False, action='store_true',
                         help="Do not call the openstreetmap overpass api looking for no-barnehage:nsrid")
     argparse_util.add_verbosity(parser, default=logging.WARNING)
@@ -358,5 +365,4 @@ if __name__ == '__main__':
         osm = get_osm_data()
     
     main(osm, args.data_dir,
-         template=args.template, index_template=args.index_template,
-         root_output=args.output_dir)
+         root=args.root)

@@ -103,7 +103,7 @@ def overpass_nsrid(nsrid='*',
         logger.error('Invalid status code %s', r.status_code)
         return None
     
-def update_osm(original, modified, username=None, password=None, comment=''):
+def update_osm(original, modified, username=None, password=None, comment='', osm_element=None):
     #'''osmapis changeset example'''
     if username is None:
         username = mypasswords.osm_username
@@ -112,17 +112,23 @@ def update_osm(original, modified, username=None, password=None, comment=''):
         
     osc = osmapis.OSC.from_diff(original, modified)
     print('DIFF: %s' % osc)
-    user_input = raw_input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete>>[y] ')
-    if user_input.lower() in ('y', ''):
+    user_input = raw_input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete>>[y] ').lower()
+    if user_input in ('y', ''):
         update = True
-    elif user_input.lower() in ('s', 'n'):
+    elif user_input in ('s', 'n'):
         print('Skipping.')
         return False
-    elif user_input.lower() in ('d', 'delete'):
+    elif user_input in ('d', 'delete'):
         print('Deleting')
         return True
-    elif user_input.lower() in ('q', 'e'):
+    elif user_input in ('q', 'e'):
         exit(1)
+    elif user_input in ('ow', 'open website'):
+        import webbrowser
+        webbrowser.open(osm_element.tags['contact:website'])
+        return update_osm(original, modified,
+                          username=username, password=password, comment=comment,
+                          osm_element=osm_element)
     else:
         print('unkown user_input, breaking.', repr(user_input))
         exit(1)
@@ -139,6 +145,8 @@ def update_osm(original, modified, username=None, password=None, comment=''):
     return True
 
 def resolve_conflict(osm_element, osm_outdated, osm_updated):
+    keys_to_ignore = ('ADDRESS', )
+    
     logger.debug('resolve_conflict:osm: %s', osm_element)    
     logger.debug('resolve_conflict:outdated: %s', osm_outdated)
     logger.debug('resolve_conflict:updated: %s', osm_updated)
@@ -216,7 +224,9 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
                         
                     logger.info('Modifying %s="%s" to "%s"', key, osm_outdated.tags[key], osm_updated.tags[key])
                     osm_element.tags[key] = osm_updated.tags[key]
-                    
+            elif key in keys_to_ignore:
+                logger.info('%s changed, ignoring. %s to %s' % (key, osm_outdated.tags[key], osm_updated.tags[key]))
+                continue
             else:
                 logger.warning('Unresolved conflict, NBR has modified %s="%s" to "%s", but osm does not have this key',
                                key, osm_outdated.tags[key], osm_updated.tags[key])
@@ -281,18 +291,29 @@ if __name__ == '__main__':
         logger.info('%s: outdated = "%s", updated = "%s"', nbr_id, filename_outdated, filename_updated)
         outdated = json.load(open(filename_outdated))
         updated = json.load(open(filename_updated))
+
+        xml = overpass_nsrid()
+        osm_original = osmapis.OSMnsrid.from_xml(xml)
+        osm = osmapis.OSMnsrid.from_xml(xml)
+        osm_elements = osm.nsrids.get(nbr_id, [])
+
         if outdated == 404:
             N_404 += 1
             logger.info('nbrid = %s was 404, removing', nbr_id)
             os.remove(filename_outdated)
             continue
         if updated == 404:
-            logger.error('ERROR: nbrid = %s is now 404. FIXME: support this, previous = %s', nbr_id, outdated)
-            # Note: do not delete before we have a good fix for this!
+            if len(osm_elements) == 0:
+                logger.warning('nbrid = %s is now 404, previous = %s is not imported to osm, ignoring', nbr_id, outdated)
+                os.remove(filename_outdated)
+            else:
+                logger.error('ERROR: nbrid = %s is now 404. FIXME: support this, previous = %s', nbr_id, outdated)
+                # Note: do not delete before we have a good fix for this!
+            
             continue
         
-        osm_outdated, _ = create_osmtags(outdated, args.data_dir)
-        osm_updated, _ = create_osmtags(updated, args.data_dir)
+        osm_outdated, _ = create_osmtags(outdated, cache_dir=args.data_dir)
+        osm_updated, _ = create_osmtags(updated, cache_dir=args.data_dir)
 
         if osm_outdated.tags == osm_updated.tags: # none of the tags that we care about has changed
             N_no_relevant_tags += 1
@@ -303,16 +324,6 @@ if __name__ == '__main__':
             os.remove(filename_outdated)
             continue
 
-        xml = overpass_nsrid()
-        # r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=%d]%s' % (int(nbr_id), bbox_scandinavia))
-        # xml = r.content
-        # xml = reply_way
-        #print('xml', xml)
-
-        osm_original = osmapis.OSMnsrid.from_xml(xml)
-        osm = osmapis.OSMnsrid.from_xml(xml)
-        osm_elements = osm.nsrids.get(nbr_id, [])
-        #osm_elements = list(find_all_nsrid_osm_elements(osm, nsrid=nbr_id))
         if len(osm_elements) == 0:
             N_not_added += 1
             logger.info('nbrid = %s has not been added to osm, removing the OUTDATED file', nbr_id)
@@ -330,7 +341,8 @@ if __name__ == '__main__':
                 if args.batch is False:
                     resolved = update_osm(original=osm_original,
                                           modified=osm,
-                                          comment=changeset_comment)
+                                          comment=changeset_comment,
+                                          osm_element=osm_element)
                 else:
                     logger.warning('Run without --batch to update osm')
                     N_need_update += 1
