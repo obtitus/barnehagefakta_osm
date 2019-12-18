@@ -62,6 +62,8 @@ def name_cleanup(name, log_filehandle=None):
     'Slettebakken menighets barnehage'
     >>> print(name_cleanup(u'Tiriltoppen barnehage Nøtterøy AS'))
     Tiriltoppen barnehage Nøtterøy
+    >>> print(name_cleanup(u'Brunstad Kristelige Menighet Molde'))
+    Brunstad kristelige menighet Molde
     """
     #name = name.decode('utf8')
     old_name = name
@@ -102,7 +104,7 @@ def name_cleanup(name, log_filehandle=None):
     for case in ('oppvekstsenter', 'menighet[s]?', 'barnehave', u'åpen', 'grendehus',
                  'terrasse', u'gård', 'privat', 'kultur', 'skole', 'skoleordning',
                  'natur', 'kirke[s]?', 'kommunale', u'Oppvekstområde', 'Oppvekst',
-                 'Of', 'musikk', 'familie'):
+                 'Of', 'musikk', 'familie', 'kristelig[e]?'):
         reg = re.search('(%s)' % case, name, flags=re.IGNORECASE|re.UNICODE)
         if reg:
             name = name.replace(reg.group(1), reg.group(1).lower())
