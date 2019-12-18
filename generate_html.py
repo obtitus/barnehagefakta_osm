@@ -73,6 +73,9 @@ def create_pre(dict1, dict_compare, mark_missing_key=True, ignore_keys=('ADDRESS
         missing_key = key not in dict_compare
         ignore = key in ignore_keys
         diff_value = not(ignore) and not(missing_key) and dict_compare[key] != dict1[key]
+        if key == 'capacity' and diff_value: # okey, maybe try and not be so strict with capacity
+            diff_value = not(update_osm.compare_capacity(dict_compare[key], dict1[key]))
+        
         if diff_value:
             a, b = dict_compare[key], dict1[key]
             value = my_htmldiff(a, b)

@@ -33,6 +33,19 @@ except ImportError:
 
 from barnehagefakta_osm import create_osmtags
 
+def compare_capacity(value1_str, value2_str):
+    '''
+    There is an insane number of small updates to the capacity key, 
+    this ensures we ignore any changes less than +- 10
+    '''
+    try:
+        value1, value2 = int(value1_str), int(value2_str)
+    except Exception as e: # guess these are not an integers?
+        return value1 == value2
+    # else:
+    return abs(value1 - value2) < 10
+
+
 def get_osm_files(folder):
     """Yields parsed .osm files below folder as a tuple (filename, osmapis.OSMnsrid)"""
     for filename in os.listdir(folder):
@@ -217,7 +230,7 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
                     return False
                 else: # Else: osm matches the old value, i.e. not tampered with
                     # Check for small changes in capacity (i.e. don't care)
-                    if key == 'capacity' and abs(int(osm_outdated.tags[key]) - int(osm_updated.tags[key])) < 10:
+                    if key == 'capacity' and compare_capacity(osm_outdated.tags[key], osm_updated.tags[key]):
                         logger.info('Ignoring small capacity change %s=%s to %s', key, osm_outdated.tags[key], osm_updated.tags[key])
                         ignored_capacity_change = True # This moves: osm_element.tags[key] = osm_updated.tags[key], to only happen if we are actually doing an update
                         continue
