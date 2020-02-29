@@ -12,7 +12,7 @@ def print_html_diff(a, b, addStylesheet=True):
     try:
         from IPython.core.display import display, HTML
         display(HTML(html))
-    except ImportErrror as e:
+    except ImportError as e:
         print(e)
 
 from utility_to_osm.kommunenummer import kommunenummer

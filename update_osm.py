@@ -223,7 +223,7 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
                                    key, osm_outdated.tags[key], osm_updated.tags[key], osm_element.tags[key])
                     #osm_element.tags[key] = osm_updated.tags[key]
                     continue
-                if osm_element.tags[key] != osm_outdated.tags[key]:
+                if osm_element.tags[key] != osm_outdated.tags[key] and key != 'capacity': # let NBR overrule capacity tag
                     logger.warning('Unresolved conflict, NBR has modified %s="%s" to "%s", but osm has the value "%s"',
                                    key, osm_outdated.tags[key], osm_updated.tags[key], osm_element.tags[key])
                     #osm_element.tags[key] = osm_updated.tags[key]

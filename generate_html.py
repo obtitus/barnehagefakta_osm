@@ -19,6 +19,11 @@ import osmapis_nsrid as osmapis
 from utility_to_osm.kommunenummer import kommunenummer
 from utility_to_osm.generate_html_history_chart import render_history_chart
 
+# from difflib import HtmlDiff
+# def my_htmldiff(a, b):
+#     d = HtmlDiff()
+#     t = d.make_table(a.encode('utf8'), b.encode('utf8'))
+#     return t
 from htmldiff import htmldiff
 def my_htmldiff(a, b):
     d = htmldiff.HTMLMatcher(a.encode('utf8'), b.encode('utf8'),
