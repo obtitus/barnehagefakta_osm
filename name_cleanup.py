@@ -5,7 +5,7 @@ import re
 import logging
 logger = logging.getLogger('barnehagefakta.name_cleanup')
 
-def name_cleanup(name, log_filehandle=None):
+def name_cleanup(name, log_filehandle=None, operator=''):
     u"""Attempt at sanitizing the name from ssr by mainly forcing sane capitalization and removing company designations AS/SA/...
     Doctest:
     >>> name_cleanup('')
@@ -64,6 +64,8 @@ def name_cleanup(name, log_filehandle=None):
     Tiriltoppen barnehage Nøtterøy
     >>> print(name_cleanup(u'Brunstad Kristelige Menighet Molde'))
     Brunstad kristelige menighet Molde
+    >>> print(name_cleanup(u'Nordre Land kommune Torpa barnehage avd. Mariringen', operator='Nordre Land kommune'))
+    Torpa barnehage avd. Mariringen
     """
     #name = name.decode('utf8')
     old_name = name
