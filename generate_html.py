@@ -313,6 +313,14 @@ def main(osm, data_dir='data', root_output='',
                        per=per)
     total = ['Sum', '', total_nbr, total_osm, progress]
                     
+    # dump progress to csv
+    today = datetime.utcnow()
+    td = (today - datetime(1970, 1, 1))
+    td_s = td.total_seconds()
+    with open('history.csv', 'a') as f:
+        f.write('{0},{1},{2}\n'.format(td_s, total_nbr, total_osm))
+
+
     info = u"""
     <p>Data fra <a href=https://nbr.udir.no>https://nbr.udir.no</a> og <a href=http://openstreetmap.org> openstreetmap.org</a>.
     Kun barnehager med taggen "no-barnehage:nsrid" blir gjenkjent.
@@ -323,14 +331,6 @@ def main(osm, data_dir='data', root_output='',
     """
     chart = render_history_chart(root)
 
-    # dump progress to csv
-    today = datetime.utcnow()
-    td = (today - datetime(1970, 1, 1))
-    td_s = td.total_seconds()
-    with open('history.csv', 'a') as f:
-        f.write('{0},{1},{2}\n'.format(td_s, total_nbr, total_osm))
-
-    
     page = index_template.render(info=info, table=index_table, bottom_row=total, chart=chart, now=td_s)
     index = os.path.join(root_output, 'index.html')
     with open_utf8(index, 'w') as output:

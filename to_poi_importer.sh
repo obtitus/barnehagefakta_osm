@@ -25,8 +25,8 @@ source barnehagefakta_osm_data/venv/bin/activate;python barnehagefakta_osm.py -s
 # convert to json and tile it
 cd $POI
 $node $osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json
-#$node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
-$node tile_geojson.js $OUTPUTDIR/norge_barnehagefakta.json  $OUTPUTDIR
+$node tile_geojson.js -d $OUTPUTDIR/norge_barnehagefakta.json -r $OUTPUTDIR
+#$node tile_geojson.js $OUTPUTDIR/norge_barnehagefakta.json  $OUTPUTDIR
 cd $OUTPUTDIR
 $git add -A data/
 $git commit -am "auto data update" || true
