@@ -122,10 +122,14 @@ def update_osm(original, modified, username=None, password=None, comment='', osm
         username = mypasswords.osm_username
     if password is None:
         password = mypasswords.osm_password
+
+    # Ensure we delete the ADDRESS tag (if any)
+    if 'ADDRESS' in modified.tags:
+        del modified.tags['ADDRESS']
         
     osc = osmapis.OSC.from_diff(original, modified)
     print('DIFF: %s' % osc)
-    user_input = raw_input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete>>[y] ').lower()
+    user_input = raw_input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete, "ow" to open website>>[y] ').lower()
     if user_input in ('y', ''):
         update = True
     elif user_input in ('s', 'n'):

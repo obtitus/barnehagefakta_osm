@@ -4,7 +4,7 @@
 # Standard python imports
 import re
 import os
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import hashlib
 import logging
 logger = logging.getLogger('barnehagefakta.conflate_osm')
@@ -12,28 +12,33 @@ logger = logging.getLogger('barnehagefakta.conflate_osm')
 import numpy as np
 
 # This project
-import file_util
+from utility_to_osm import file_util
 import osmapis_nsrid as osmapis
 from barnehagefakta_osm import to_kommunenr
+from utility_to_osm import argparse_util
+
+# how close is the lat/lon
+from generate_html import get_lat_lon # fixme, move this piece of code
+
 
 def overpass_xml(xml, old_age_days=7, conflate_cache_filename=None):
     ''' Query the OverpassAPI with the given xml query, cache result for old_age_days days
     in file conflate_cache_filename (defaults to conflate_cache_<md5(xml)>.osm)
     '''
     if conflate_cache_filename is None:
-        filename = 'conflate_cache_' + hashlib.md5(xml).hexdigest() + '.osm'
+        filename = 'conflate_cache_' + hashlib.md5(xml.encode()).hexdigest() + '.osm'
     else:
         filename = conflate_cache_filename
     
     cached, outdated = file_util.cached_file(filename, old_age_days=old_age_days)
     if cached is not None and not(outdated):
-        print 'Using overpass responce stored as "%s". Delete this file if you want an updated version' % filename
+        print('Using overpass responce stored as "%s". Delete this file if you want an updated version' % filename)
         return osmapis.OSMnsrid.from_xml(cached)
 
     o = osmapis.OverpassAPI()
     osm = o.interpreter(xml)
 
-    print 'Overpass responce stored as %s' % filename
+    print('Overpass responce stored as %s' % filename)
     osm.save(filename)
 
     return osm
@@ -56,7 +61,7 @@ def get_kommune_local(kommune):
 def download(root_url, directory, filename):
     url = os.path.join(root_url, directory, filename) # should probably use some html join, but I know the input...
     filename = os.path.join(directory, filename)
-    response = urllib2.urlopen(url)
+    response = urllib.request.urlopen(url)
     content = response.read()
     file_util.write_file(filename, content)
     return filename
@@ -82,11 +87,11 @@ def score_similarity_strings(nbr_name, overpass_name):
         return 0
 
     nbr_name, overpass_name = nbr_name.lower(), overpass_name.lower()
-    if nbr_name == overpass_name:
-        return 100
+    if nbr_name.lower() == overpass_name.lower():
+        return 200
     score = 0
     for word in nbr_name.split():
-        if word in overpass_name:
+        if word.lower() in overpass_name.lower():
             score += 10
         
     return score
@@ -118,16 +123,25 @@ def score(nbr_node, overpass_element, overpass_osm):
             score -= 10
     except KeyError:
         pass                    # one or more is missing no-barnehage:nsrid
-        
-    # how close is the lat/lon
-    from generate_html import get_lat_lon # fixme, move this piece of code
 
     lat_lon = get_lat_lon(overpass_osm, overpass_element) # fixme, only returns 1 node
     if lat_lon is not None:
         overpass_lat, overpass_lon = lat_lon
         nbr_lat, nbr_lon = nbr_node.attribs['lat'], nbr_node.attribs['lon']
-        diff = (overpass_lat - nbr_lat)**2 + (overpass_lon - nbr_lon)**2 # no unit in particular...
-        score += int(diff*1000)     # random weight...
+        diff = np.sqrt((overpass_lat - nbr_lat)**2 + (overpass_lon - nbr_lon)**2)
+        distance_score = 1/diff
+        #distance_score *= 0.1 # add weight
+        #print('distance score', diff, distance_score)
+        if distance_score > 100:
+            distance_score = 100
+        
+        score += distance_score
+
+    # is there a highway tag?
+    if 'highway' in overpass_tags:
+        score -= 10
+        if overpass_tags['highway'] == 'bus_stop':
+            score -= 100
     
     return score
 
@@ -209,38 +223,38 @@ def add_tags(nbr_element, overpass_element):
     """For all keys in a, add the value to b if missing from b,
     then query the user if he wants to make further adjustments
     INPLACE!"""
-    ret = add_missing_tags(nbr_element, overpass_element)
+    ret = add_missing_tags(nbr_element, overpass_element)    
     overpass_element.tags = ret
-    print 'Missing tags added, is now """%s"""' % overpass_element
-    print 'would you like to make further adjustments to the tags?'
+    print('Missing tags added, is now """%s"""' % overpass_element)
+    print('would you like to make further adjustments to the tags?')
     for key in nbr_element.tags:
         if nbr_element.tags[key] != overpass_element.tags[key]:
-            print 'nbr != osm: "%s"="%s" != "%s"="%s"' % (key, nbr_element.tags[key],
-                                                          key, overpass_element.tags[key])
+            print('nbr != osm: "%s"="%s" != "%s"="%s"' % (key, nbr_element.tags[key],
+                                                          key, overpass_element.tags[key]))
     for key in overpass_element.tags:
         if key not in nbr_element.tags:
-            print 'not in nbr data: "%s"="%s"' % (key, overpass_element.tags[key])
+            print('not in nbr data: "%s"="%s"' % (key, overpass_element.tags[key]))
         
     while True:
         print ('To modify a tag, type e.g. name="Corrected name" '
                'or k="name" v="Corrected name", '
                'blank value deletes the tag, press enter to continue.')
 
-        user_input = raw_input('>> ')
+        user_input = input('>> ')
         if user_input.strip() in ("", "q"): break
         
         ret = parse_user_input_tag_change(user_input)
         if ret is not None:
             key, value = ret[0], ret[1]
             if value in ("", None):
-                print 'Removing k="%s"' % (key)
+                print('Removing k="%s"' % (key))
                 del overpass_element.tags[key]
             else:
-                print 'Modifying k="%s" v="%s"' % (key, value)
+                print('Modifying k="%s" v="%s"' % (key, value))
                 overpass_element.tags[key] = value
                 
         else:
-            print 'Unrecognized input "%s", please try to express yourself more clearly, or fix me' % user_input
+            print('Unrecognized input "%s", please try to express yourself more clearly, or fix me' % user_input)
 
     return user_input
 
@@ -298,8 +312,8 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
     logger.debug('nbr_elements = %s, %s', len(nbr_elements), nbr_elements)
     logger.debug('overpass_elements = %s, %s', len(overpass_elements), overpass_elements)
 
-    for ix in xrange(len(nbr_elements)):
-        for jx in xrange(len(overpass_elements)):
+    for ix in range(len(nbr_elements)):
+        for jx in range(len(overpass_elements)):
             score_matrix[ix, jx] = score(nbr_elements[ix], overpass_elements[jx],
                                          overpass_osm=overpass_osm)
         logger.debug('score for nsrid=%s, max=%s, %s %s',
@@ -310,7 +324,7 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
 
     non_zero = score_matrix[np.where(score_matrix > 0)] # non-zero and non-negative (flattend)
     quantile = np.percentile(non_zero, 90)
-    print 'Ignoring anything with a score lower than', quantile
+    print('Ignoring anything with a score lower than', quantile)
     score_matrix[np.where(score_matrix < quantile)] = 0
 
     modified = list()
@@ -318,7 +332,7 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
     ix_sort = np.argsort(m)
     for ix in ix_sort[::-1]: # For each nbr node, starting with the higest scoring
         nbr_element = nbr_elements[ix]
-        nbr_element_str = u'nsrid = %s, %s' % (nbr_element.tags['no-barnehage:nsrid'], nbr_element.tags['name'])
+        nbr_element_str = 'nsrid = %s, %s' % (nbr_element.tags['no-barnehage:nsrid'], nbr_element.tags['name'])
         
         # Go trough all potensial matches, starting with the most likely.
         jx_sort = list(np.argsort(score_matrix[ix, :]))
@@ -331,47 +345,63 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
                 break
 
             if is_perfect_match(nbr_elements[ix].tags, overpass_elements[jx].tags):
-                print 'Found perfect match between {nbr} and {osm}, score: ({s}) continuing'.\
-                    format(nbr=nbr_elements[ix], osm=overpass_elements[jx], s=s)
+                print('Found perfect match between {nbr} and {osm}, score: ({s}) continuing'.\
+                    format(nbr=nbr_elements[ix], osm=overpass_elements[jx], s=s))
                 found = True
                 break
+
+            # fixme: function
+            distance = 0
+            nbr_node = nbr_elements[ix]
+            lat_lon = get_lat_lon(overpass_osm, overpass_elements[jx]) # fixme, only returns 1 node
+            if lat_lon is not None:
+                overpass_lat, overpass_lon = lat_lon
+                nbr_lat, nbr_lon = nbr_node.attribs['lat'], nbr_node.attribs['lon']
+                distance = np.sqrt((overpass_lat - nbr_lat)**2 + (overpass_lon - nbr_lon)**2)
             
-            possible_match.append((s, overpass_elements[jx]))
+            possible_match.append((s, distance, overpass_elements[jx]))
 
         logger.debug('possible_match = %s, %s', len(possible_match), possible_match)
         if found is False and len(possible_match) == 0:
-            print 'No likely match found for %s' % (nbr_element_str)
+            print('No likely match found for %s' % (nbr_element_str))
 
         if len(possible_match) == 0:
             continue
         elif len(possible_match) == 1:
-            print u'\n{h} Found {num} possible match for {name} {h}'\
-                .format(h='='*5, num=1, name=nbr_element_str)
+            print('\n{h} Found {num} possible match for {name} {h}'\
+                .format(h='='*5, num=1, name=nbr_element_str))
         else:                   # Reduces the list of potensiall matches to 1
-            print u'\n{h} Found {num} possible matches for {name}, please choose [index] {h}'\
-                .format(h='='*5, num=len(possible_match), name=nbr_element_str)
+            print('\n{h} Found {num} possible matches for {name}, please choose [index] {h}'\
+                .format(h='='*5, num=len(possible_match), name=nbr_element_str))
 
-            for ix, (s, overpass_element) in enumerate(possible_match):
-                print u'[index] = [{ix}], score = {score}, tags = {tags}'\
-                    .format(ix=ix, score=s, tags=overpass_element.tags)
-            user_input = raw_input('enter index ("s" to skip): ')
+            for ix, (s, distance, overpass_element) in enumerate(possible_match):
+                print('[index] = [{ix}], score = {score}, distance = {distance:.2g}, tags = {tags}'\
+                    .format(ix=ix, score=s, tags=overpass_element.tags, distance=distance))
+            user_input = input('enter index ("s" to skip, "q" to quit, enter to select 0): ')
             if user_input == 's': continue
+            elif user_input == '': user_input = '0' # assume zero
+            elif user_input == 'q': break
             try:
                 possible_match = [possible_match[int(user_input)]] # length 1 list with users-match
             except:
-                print ('Stupid user, Error, invalid index {ix}, expecting an integer between 0 and {len}'
-                       ', skipping since you are being difficult').format(ix=user_input, len=len(possible_match)-1)
+                print(('Stupid user, Error, invalid index {ix}, expecting an integer between 0 and {len}'
+                       ', skipping since you are being difficult').format(ix=user_input, len=len(possible_match)-1))
                 continue
 
         assert len(possible_match) == 1
-        s, possible_match = possible_match[0]
-        print 'Score = {s}, Please confirm match: Is nbr="""\n{nbr}""", the same as "{osm_name}" osm="""\n{osm}"""?'\
-            .format(s=s, osm_name=possible_match.tags.get('name').encode('utf-8'), nbr=nbr_element, osm=possible_match)
+        s, distance, possible_match = possible_match[0]
+        print('Score = {s}, Please confirm match: Is nbr="""\n{nbr}""", the same as "{osm_name}" osm="""\n{osm}"""?'\
+            .format(s=s, osm_name=possible_match.tags.get('name').encode('utf-8'), nbr=nbr_element, osm=possible_match))
         
-        print "enter 'y' to confirm, 's' or blank to skip to the next one, 'q' to save and quit or ctrl-c to quit"
-        user_input = raw_input('> ')
-        if user_input.lower() == 'y':
+        print("enter 'y' or enter to confirm, 's' or blank to skip to the next one, 'q' to save and quit or ctrl-c to quit")
+        user_input = input('> ')
+        if user_input.lower() in ('y', ''):
+            # okay, now remove the address first
+            if 'ADDRESS' in nbr_element.tags:
+                del nbr_element.tags['ADDRESS']
+            # prompt user for input
             user_input2 = add_tags(nbr_element, possible_match)
+            # mark as modified
             possible_match.attribs['action'] = 'modify'
             modified.append(possible_match)
             
@@ -388,18 +418,18 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
         logger.exception('I have a hack to clean up the .osm files by removing un-modified objects, this failed with %s', e)
         all_modified = overpass_osm
     
-    for elem in overpass_osm:
+    for elem in list(overpass_osm):
         if not(elem) in all_modified:
             overpass_osm.discard(elem)
         
     if len(modified) != 0:
-        print 'Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename
+        print('Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename)
         overpass_osm.save(output_filename)
     else:
-        print 'No changes made, nothing to upload'
+        print('No changes made, nothing to upload')
     
 if __name__ == '__main__':
-    import argparse_util
+    
     parser = argparse_util.get_parser("""A tool for assisting with the conflation of openstreetmap and NBR data. 
     You will need JSON to review and upload changes to openstreetmap. 
     Using this tool is therefore completely safe, play around, 
@@ -449,7 +479,7 @@ if __name__ == '__main__':
                 bounding_box.append(f)
             except: pass
         assert len(bounding_box) == 4, 'Expected a bounding box with 4 numbers, got: %s numbers: %s' % (len(bounding_box), bounding_box)
-        print 'Bounding box:', bounding_box
+        print('Bounding box:', bounding_box)
         
         area_query = '<bbox-query into="_" w="{w}" s="{s}" e="{e}" n="{n}" />'.format(w=bounding_box[0],
                                                                                       s=bounding_box[1],
@@ -461,7 +491,7 @@ if __name__ == '__main__':
         variables_query = '<id-query into="searchArea" ref="{ref}" type="area"/>'.format(ref=searchArea_ref)
         area_query = '<area-query from="searchArea" into="_" ref=""/>'
     else:
-        print 'Error: You need to supply either --relation_id or --bounding_box, see --help. Exiting...'
+        print('Error: You need to supply either --relation_id or --bounding_box, see --help. Exiting...')
         exit(1)
 
     with open(args.query_template, 'r') as f:
@@ -487,7 +517,7 @@ if __name__ == '__main__':
         nbr_osms.append(osmapis.OSMnsrid.from_xml(xml))
 
     if len(nbr_osms) == 0:
-        print 'Warning: You need to supply either --osm_kommune and/or --osm_filename, see --help. Exiting...'
+        print('Warning: You need to supply either --osm_kommune and/or --osm_filename, see --help. Exiting...')
         exit(1)
     
     # Combine osm objects
@@ -496,7 +526,7 @@ if __name__ == '__main__':
         for item in o:
             nbr_osm.add(item)
 
-    print 'Saving the combined nbr data as nbr.osm'
+    print('Saving the combined nbr data as nbr.osm')
     nbr_osm.save('nbr.osm')
 
     conflate(nbr_osm, overpass_osm, output_filename='out.osm')

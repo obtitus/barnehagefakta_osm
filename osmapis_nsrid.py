@@ -2,7 +2,8 @@ import logging
 logger = logging.getLogger('barnehagefakta.osmapis_nsrid')
 
 from utility_to_osm.osmapis import osmapis
-from osmapis import *
+from utility_to_osm.osmapis.osmapis import *
+#from osmapis import *
 
 class OSMnsrid(osmapis.OSM):
     """Adds the container nsrids to osmpais.OSM, 
