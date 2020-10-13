@@ -26,9 +26,14 @@ from utility_to_osm.generate_html_history_chart import render_history_chart
 #     return t
 from htmldiff import htmldiff
 def my_htmldiff(a, b):
-    d = htmldiff.HTMLMatcher(a.encode('utf8'), b.encode('utf8'),
-                             accurate_mode=True)
-    return d.htmlDiff(addStylesheet=False).decode('utf8')
+    try:
+        d = htmldiff.HTMLMatcher(a.encode('utf8'), b.encode('utf8'),
+                                 accurate_mode=True)
+        return d.htmlDiff(addStylesheet=False).decode('utf8')
+    except:
+        d = htmldiff.HTMLMatcher(a, b,
+                                 accurate_mode=True)
+        return d.htmlDiff(addStylesheet=False)
 
 link_template = u'<a href="{href}"\ntitle="{title}">{text}</a>'
 # base_url = 'http://obtitus.github.io/barnehagefakta_osm_data/'
@@ -107,7 +112,7 @@ def create_rows(osm, data):
 
         row = list()
         # Name
-        row.append(kindergarten.tags['name'])
+        name_column = kindergarten.tags['name']
 
         # Tags from OSM
         osm_data = []
@@ -159,8 +164,9 @@ def create_rows(osm, data):
         mark_missing_key = True
         if len(osm_data_tags) == 0: mark_missing_key=False # do not mark the 'not found'
         tags_nbr = create_pre(kindergarten.tags, osm_data_tags, mark_missing_key=mark_missing_key)
+
+        row.append(name_column)
         row.append(tags_nbr)
-                
         row.append(tags)
         
         # Links
@@ -192,6 +198,18 @@ def create_rows(osm, data):
         title = u'Du blir sendt til openstreetmap sin web-editor'
         text = 'Editer OSM'
         links += link_template.format(href=href, title=title, text=text)
+
+        website_address = ''
+        if len(osm_data_tags) == 0:
+            website_address = kindergarten.tags.get('contact:website', '')
+        else:
+            # use website from osm
+            website_address = osm_data_tags.get('contact:website', '')
+
+        if website_address != '':
+            links += '\n' + link_template.format(href=website_address,
+                                                 title='website',
+                                                 text='Barnehagens webside')
         
         links += '</pre>'
         row.append(links)

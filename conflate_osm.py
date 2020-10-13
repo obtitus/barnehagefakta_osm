@@ -44,7 +44,24 @@ def overpass_xml(xml, old_age_days=7, conflate_cache_filename=None):
     return osm
 
 def get_kommune_local(kommune):
-    for root, dirs, files in os.walk('.'): # fixme
+    root = 'barnehagefakta_osm_data/data'
+    filename1 = os.path.join(root, kommune, kommune + '_barnehagefakta.osm')
+    filename2 = os.path.join(root, kommune, kommune + '_barnehagefakta_familiebarnehager.osm')
+    found = False
+    if os.path.exists(filename2):
+        logger.info('Found %s', filename2)
+        found = True
+        yield filename2
+    if os.path.exists(filename1):
+        logger.info('Found %s', filename1)
+        found = True
+        yield filename1
+
+    if found:
+        return
+
+    # Slow way, search all folders
+    for root, dirs, files in os.walk('.'):
         if kommune in dirs:
             filename1 = os.path.join(root, kommune, kommune + '_barnehagefakta.osm')
             filename2 = os.path.join(root, kommune, kommune + '_barnehagefakta_familiebarnehager.osm')
@@ -69,6 +86,7 @@ def download(root_url, directory, filename):
 def get_kommune(kommune):
     kommune = to_kommunenr(kommune) # now a nicely formatted string e.g. '0213'
     try:
+        logger.info('Looking for %s' % kommune)
         return list(get_kommune_local(kommune))
     except BaseException as e:
         logger.info('Failed to find local barnehagefakt.osm file: %s. Downloading...', e)
@@ -146,15 +164,23 @@ def score(nbr_node, overpass_element, overpass_osm):
     return score
 
 def is_perfect_match(dict_a, dict_b):
-    """A perfect match is in this case that all keys in a match those in b"""
-    for key in dict_a:
-        try:
-            if dict_a[key] != dict_b[key]:
-                return False
-        except KeyError:
-            return False
-    # no breaks
-    return True
+    """Look for matching nsrid"""
+    try:
+        if dict_a['no-barnehage:nsrid'] == dict_b['no-barnehage:nsrid']:
+            return True
+    except KeyError:
+        pass
+    return False
+
+    # """A perfect match is in this case that all keys in a match those in b"""
+    # for key in dict_a:
+    #     try:
+    #         if dict_a[key] != dict_b[key]:
+    #             return False
+    #     except KeyError:
+    #         return False
+    # # no breaks
+    # return True
 
 def add_missing_tags(nbr_element, overpass_element):
     """For all keys in a, add the value to b if missing from b"""
@@ -316,11 +342,12 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
         for jx in range(len(overpass_elements)):
             score_matrix[ix, jx] = score(nbr_elements[ix], overpass_elements[jx],
                                          overpass_osm=overpass_osm)
-        logger.debug('score for nsrid=%s, max=%s, %s %s',
-                     nbr_elements[ix].tags['no-barnehage:nsrid'],
-                     max(score_matrix[ix, :]),
-                     len(score_matrix[ix, :]),
-                     list(score_matrix[ix, :]))
+        if len(score_matrix) != 0:
+            logger.debug('score for nsrid=%s, max=%s, %s %s',
+                         nbr_elements[ix].tags['no-barnehage:nsrid'],
+                         max(score_matrix[ix, :]),
+                         len(score_matrix[ix, :]),
+                         list(score_matrix[ix, :]))
 
     non_zero = score_matrix[np.where(score_matrix > 0)] # non-zero and non-negative (flattend)
     quantile = np.percentile(non_zero, 90)
@@ -328,6 +355,7 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
     score_matrix[np.where(score_matrix < quantile)] = 0
 
     modified = list()
+    matched = list()
     m = np.nanmax(score_matrix, axis=1)
     ix_sort = np.argsort(m)
     for ix in ix_sort[::-1]: # For each nbr node, starting with the higest scoring
@@ -346,7 +374,9 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
 
             if is_perfect_match(nbr_elements[ix].tags, overpass_elements[jx].tags):
                 print('Found perfect match between {nbr} and {osm}, score: ({s}) continuing'.\
-                    format(nbr=nbr_elements[ix], osm=overpass_elements[jx], s=s))
+                      format(nbr=nbr_elements[ix], osm=overpass_elements[jx], s=s))
+                #matched.append(nbr_elements)
+                matched.append(overpass_elements)
                 found = True
                 break
 
@@ -358,8 +388,9 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
                 overpass_lat, overpass_lon = lat_lon
                 nbr_lat, nbr_lon = nbr_node.attribs['lat'], nbr_node.attribs['lon']
                 distance = np.sqrt((overpass_lat - nbr_lat)**2 + (overpass_lon - nbr_lon)**2)
-            
-            possible_match.append((s, distance, overpass_elements[jx]))
+
+            if overpass_elements[jx] not in matched:
+                possible_match.append((s, distance, overpass_elements[jx]))
 
         logger.debug('possible_match = %s, %s', len(possible_match), possible_match)
         if found is False and len(possible_match) == 0:
@@ -375,8 +406,12 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
                 .format(h='='*5, num=len(possible_match), name=nbr_element_str))
 
             for ix, (s, distance, overpass_element) in enumerate(possible_match):
+                if ix > 35:
+                    print('...')
+                    break
                 print('[index] = [{ix}], score = {score}, distance = {distance:.2g}, tags = {tags}'\
                     .format(ix=ix, score=s, tags=overpass_element.tags, distance=distance))
+            
             user_input = input('enter index ("s" to skip, "q" to quit, enter to select 0): ')
             if user_input == 's': continue
             elif user_input == '': user_input = '0' # assume zero
@@ -403,6 +438,7 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
             user_input2 = add_tags(nbr_element, possible_match)
             # mark as modified
             possible_match.attribs['action'] = 'modify'
+            matched.append(possible_match)
             modified.append(possible_match)
             
             if user_input2.lower() == 'q': break
@@ -410,6 +446,8 @@ def conflate(nbr_osm, overpass_osm, output_filename='out.osm'):
             continue
         elif user_input.lower() == 'q':
             break
+
+        logger.info('Matched %d kindergartens, modified %d kindergartens' % (len(matched), len(modified)))
 
     try:
         all_modified = list(get_all_referenced(modified, overpass_osm))
@@ -513,6 +551,7 @@ if __name__ == '__main__':
 
     nbr_osms = []
     for filename in nbr_osms_filenames:
+        logger.info('Parsing %s', filename)
         xml = file_util.read_file(filename)
         nbr_osms.append(osmapis.OSMnsrid.from_xml(xml))
 
