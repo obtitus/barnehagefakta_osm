@@ -109,15 +109,15 @@ def add_country_code(input_dict, key, inplace=False):
 def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
                    name_cleanup_filehandle=None):
     # See http://data.udir.no/baf/json-beskrivelse.html for a full list of expected keys
-    nsrId = int(udir_tags['nsrId']) # ensure int
+    orgnr = int(udir_tags['orgnr']) # ensure int
     
     lat, lon = udir_tags['koordinatLatLng']
     attribs = dict(lat=lat, lon=lon)
     # checks:
     if not(udir_tags['erBarnehage']):
-        raise ValueError('Error: %d data says this is not a barnehage erBarnehage=%s' % (nsrId, udir_tags['erBarnehage']))
+        raise ValueError('Error: %d data says this is not a barnehage erBarnehage=%s' % (orgnr, udir_tags['erBarnehage']))
     if not(udir_tags['erAktiv']):
-        raise ValueError('FIXME: %d erAktiv is False, what-to-do!' % nsrId)
+        raise ValueError('FIXME: %d erAktiv is False, what-to-do!' % orgnr)
 
     # It was decided to not include opening_hours
     # opening_hours = ''
@@ -139,7 +139,7 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
         operator_type = 'public'
     else:
         logger.warning('%d, Unknown "eierform=%s", fixme: consider using "erPrivatBarnehage=%s"',
-                       nsrId, udir_tags['eierform'], udir_tags['erPrivatBarnehage'])
+                       orgnr, udir_tags['eierform'], udir_tags['erPrivatBarnehage'])
 
     min_age, max_age = '', ''
     age = udir_tags['alder']
@@ -148,7 +148,7 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
             min_age, max_age = re.split('[^\d.]+', age)
             min_age, max_age = int(min_age), int(max_age) # ensure ints (fixme: support float?):
         except ValueError as e:
-            logger.warning('%d Unable to parse "%s" into min and max age, %s', nsrId, age, e)
+            logger.warning('%d Unable to parse "%s" into min and max age, %s', orgnr, age, e)
 
     tags_contact = dict()
     address = ''
@@ -185,7 +185,7 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
     #             d = datetime.datetime.strptime(udir_tags['opprettetDato'], '%m/%d/%Y %H:%M:%S')
     #         start_date = datetime.date(year=d.year, month=d.month, day=d.day).isoformat()
     #     except Exception as e:
-    #         logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", nsrId, udir_tags['opprettetDato'], e)
+    #         logger.warning("%d Invalid date in udir_tags['opprettetDato'] = '%s'. %s", orgnr, udir_tags['opprettetDato'], e)
             
     if udir_name != '':
         #assert udir_name == udir_tags['navn'], 'udir_name="%s", udir_tags["navn"]="%s"' % (udir_name, udir_tags['navn']) # udir_name is assumed to come from barnehageregister, check that it corresponds to barnehagefakta.
@@ -193,11 +193,11 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
             logger.warning(('The name from https://nbr.udir.no/enhet/{id} '
                             'differ from http://barnehagefakta.no/api/barnehage/{id},'
                             '"{nbr}" != "{barnehagefakta}"').format(
-                                id=nsrId, barnehagefakta=udir_tags['navn'].encode('utf8'), nbr=udir_name.encode('utf8')))
+                                id=orgnr, barnehagefakta=udir_tags['navn'].encode('utf8'), nbr=udir_name.encode('utf8')))
 
     osm_tags = {'amenity': 'kindergarten',
                 'name': udir_tags['navn'],
-                'no-barnehage:nsrid': udir_tags['nsrId'],
+                'no-barnehage:nsrid': udir_tags['orgnr'],
 #                'opening_hours': opening_hours,
                 'operator': operator,
                 'operator:type': operator_type,
@@ -223,7 +223,7 @@ def create_osmtags(udir_tags, operator='', udir_name='', cache_dir='data',
     
     # Create and return osmapis.Node and type
     node = osmapis.Node(attribs=attribs, tags=osm_tags)
-    logger.debug('%d, Created node %s', nsrId, node)
+    logger.debug('%d, Created node %s', orgnr, node)
     return node, udir_tags['type']
 
 def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, discontinued=None, save=True,
@@ -249,18 +249,18 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, d
         name = ''
         # item can be either dictionary or simply items
         try:
-            nbr_id = item['nbrId']
+            orgnr = item['orgnr']
             operator = item['Eier']
             name = item['name']
         except TypeError:
-            nbr_id = item
+            orgnr = item
 
-        if nbr_id in visited_ids:
-            logger.warning('Already added %s', nbr_id)
-        visited_ids.add(nbr_id)
+        if orgnr in visited_ids:
+            logger.warning('Already added %s', orgnr)
+        visited_ids.add(orgnr)
 
         try:
-            udir_tags = barnehagefakta_get(nbr_id, cache_dir=cache_dir)
+            udir_tags = barnehagefakta_get(orgnr, cache_dir=cache_dir)
             if udir_tags == {}: continue
             node, barnehage_type = create_osmtags(udir_tags, operator=operator, udir_name=name, cache_dir=global_cache_dir,
                                                   name_cleanup_filehandle=name_cleanup_filehandle)
@@ -273,10 +273,10 @@ def main(lst, output_filename, cache_dir, osm=None, osm_familiebarnehage=None, d
             logger.info(('Kindergarten "{name}" https://nbr.udir.no/enhet/{id}'
                          ', returned 404 at http://barnehagefakta.no/api/barnehage/{id}. '
                          'The kindergarten is probably discontinued.').format(
-                             name=name.encode('utf8'), id=nbr_id))
-            discontinued.append((name, operator, str(nbr_id)))
+                             name=name.encode('utf8'), id=orgnr))
+            discontinued.append((name, operator, str(orgnr)))
         except:
-            logger.exception('Un-handled exception for nbr_id = %s, skipping', nbr_id)
+            logger.exception('Un-handled exception for orgnr = %s, skipping', orgnr)
             exit(1)
             return osm, osm_familiebarnehage, discontinued
 
@@ -306,12 +306,12 @@ if __name__ == '__main__':
 
     parser = argparse_util.get_parser('''Converts norwegian kindergarten-data from 
 "Utdanningdsdirektoratet Nasjonalt barnehageregister" to .osm format for import into openstreetmap. 
-Specify either by --nbr_id or by --kommune.''',
+Specify either by --orgnr or by --kommune.''',
                                       epilog='Example: ./barnehagefakta_osm.py --kommune ALL --update_kommune')
-    parser.add_argument('--nbr_id', nargs='+', help='Unique NBR-id(s) to download and parse (e.g. 1015988).')
+    parser.add_argument('--orgnr', nargs='+', help='Unique NBR-id(s) to download and parse (e.g. 1015988).')
     parser.add_argument('--kommune', nargs='+', help='Assumes barnehageregister_nbrId.py has been called, otherwise, use with --update_kommune. Specify either kommunenummer (e.g. 0213 or 213) or kommunename (e.g. Ski). Use the special "ALL" for all kommunes. Places a .osm file in each of the kommune folders unless --output_filename is used.')
     parser.add_argument('--update_kommune', default=False, action='store_true',
-                        help='Finds valid nsrIds for the given --kommunenummer (calls barnehageregister_nbrId.py)')
+                        help='Finds valid orgnr for the given --kommunenummer (calls barnehageregister_nbrId.py)')
     parser.add_argument('--output_filename', default=None,
                         help='Specify output filename, defaults to "barnehagefakta.osm", for kommuner it will default to cache_dir/<nr>/barnehagefakta.osm')
     parser.add_argument('--cache_dir', default='data',
@@ -345,9 +345,9 @@ Specify either by --nbr_id or by --kommune.''',
     if args.kommune:      # list of kommuner given
         if args.kommune == ['ALL']:
             nr2name, _ = kommunenummer()
-            kommunenummer = map(to_kommunenr, nr2name.keys())
+            kommunenummer = list(map(to_kommunenr, nr2name.keys()))
         else:
-            kommunenummer = map(to_kommunenr, args.kommune)
+            kommunenummer = list(map(to_kommunenr, args.kommune))
         
         for kommune_id in kommunenummer:
             cache_dir = os.path.join(args.cache_dir, kommune_id) # work inside kommune folder
@@ -371,10 +371,10 @@ Specify either by --nbr_id or by --kommune.''',
                                                 name_cleanup_filehandle=name_cleanup_filehandle,
                                                 global_cache_dir=args.cache_dir)
                 
-    if args.nbr_id:
+    if args.orgnr:
         if args.output_filename is None:
             output_filename = 'barnehagefakta.osm'
-        main(args.nbr_id, output_filename, args.cache_dir, global_cache_dir=args.cache_dir,
+        main(args.orgnr, output_filename, args.cache_dir, global_cache_dir=args.cache_dir,
              name_cleanup_filehandle=name_cleanup_filehandle)
 
     name_cleanup_filehandle.close()

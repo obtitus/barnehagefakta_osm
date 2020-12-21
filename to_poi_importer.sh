@@ -21,7 +21,7 @@ OUTPUTDIR=datasets/norge-barnehagefakta
 # cd ..
 
 # Create a 'large' .osm file with all kindergartens:
-source barnehagefakta_osm_data/venv/bin/activate;python barnehagefakta_osm.py -s --kommune ALL --output_filename $POI/$OUTPUTDIR/norge_barnehagefakta.osm --cache_dir barnehagefakta_osm_data/data/
+python barnehagefakta_osm.py --debug --kommune ALL --output_filename $POI/$OUTPUTDIR/norge_barnehagefakta.osm --cache_dir barnehagefakta_osm_data/data/
 # convert to json and tile it
 cd $POI
 $node $osmtogeojson $OUTPUTDIR/norge_barnehagefakta.osm > $OUTPUTDIR/norge_barnehagefakta.json

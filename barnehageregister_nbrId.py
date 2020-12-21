@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf8
 
-"""Gets and parses search results from nbr.udir.no for nbrId and Eier"""
+"""Gets and parses search results from nbr.udir.no for nbrId/orgnr and Eier"""
 # Standard python imports
 import os
 import re
@@ -129,7 +129,9 @@ def parse(content):
                      'Eier': basestring,
                      'Org.Nr': int}
                      #'Type': basestring}
-    ignore_data = ['Org.Nr'] # org.nummer of the barnehage (not operator!)
+    #ignore_data = ['Org.Nr'] # org.nummer of the barnehage (not operator!)
+    ignore_data = []
+    rename_tags = {'Org.Nr': 'orgnr'}
 
     soup = BeautifulSoup(content, 'lxml')
     table = find_search_table(soup)
@@ -149,6 +151,10 @@ def parse(content):
                 raw_data[key] = expected_data[key](raw_data[key])
 
         for key in ignore_data:
+            del raw_data[key]
+
+        for key, key_new in rename_tags.items():
+            raw_data[key_new] = raw_data[key]
             del raw_data[key]
         
         yield raw_data
@@ -197,7 +203,8 @@ def get_kommune(kommune_id, cache_dir='data'):
             yield json.loads(row)
 
 if __name__ == '__main__':
-    import argparse_util
+    from utility_to_osm import argparse_util
+    
     parser = argparse_util.get_parser('''Gets nbr_ids for the given kommune by searching https://nbr.udir.no/sok/.
     Note: this file is called by barnehagefakta_osm.py when --update_kommune is passed.''')
     parser.add_argument('kommunenr', nargs='+',

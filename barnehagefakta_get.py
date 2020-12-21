@@ -35,33 +35,33 @@ def equal_json_responses(res1, res2, ignore=('id', 'indikatorDataKommune')):
     except:
         return res1 != res2
         
-def barnehagefakta_get_json(nbr_id, old_age_days=5, cache_dir='data', keep_history=True):
-    """Returns json string for the given nbr_id, caches result to file in directory cache_dir. 
+def barnehagefakta_get_json(orgnr, old_age_days=5, cache_dir='data', keep_history=True):
+    """Returns json string for the given orgnr, caches result to file in directory cache_dir. 
     If the cached result is older than old_age_days a new version is fetched.
     By default (if keep_history is True) changes in the response will detected 
     and archived for further processing. 
 
     In other words:
-    (1) The first time this is called, barnehagefakta.no/api/barnehage/{nbr_id} is visited, 
-    the response is stored in cache_dir/barnehagefakta_no_nbrId{nbr_id}.json, 
+    (1) The first time this is called, barnehagefakta.no/api/barnehage/{orgnr} is visited, 
+    the response is stored in cache_dir/barnehagefakta_no_nbrId{orgnr}.json, 
     the file may consist of only the string '404' if the request returned 404.
-    (2a) Calling the function again with the same {nbr_id} within old_age_days, 
+    (2a) Calling the function again with the same {orgnr} within old_age_days, 
     will simply return the content of the previously stored file
-    (2b) Calling the function again with the same {nbr_id} after old_age_days has passed,
+    (2b) Calling the function again with the same {orgnr} after old_age_days has passed,
     will visit barnehagefakta again, refreshing and returning the local .json file.
     If the responce has changed from last time, the previous result is archived as
-    cache_dir/barnehagefakta_no_nbrId{nbr_id}-{%Y-%m-%d}-OUTDATED.json
+    cache_dir/barnehagefakta_no_nbrId{orgnr}-{%Y-%m-%d}-OUTDATED.json
 
     May raise requests.ConnectionError if the connection fails.
     """
     
-    filename = os.path.join(cache_dir, 'barnehagefakta_no_nbrId{0}.json'.format(nbr_id))
+    filename = os.path.join(cache_dir, 'barnehagefakta_no_orgnr{0}.json'.format(orgnr))
     cached, outdated = file_util.cached_file(filename, old_age_days)
     if cached is not None and not(outdated):
         return cached
     # else, else:
 
-    url = 'http://barnehagefakta.no/api/barnehage/{0}'.format(nbr_id)
+    url = 'http://barnehagefakta.no/api/barnehage/{0}'.format(orgnr)
     # try:
     r = request_session.get(url)
     # except requests.ConnectionError as e:
@@ -90,7 +90,7 @@ def barnehagefakta_get_json(nbr_id, old_age_days=5, cache_dir='data', keep_histo
             d = datetime.utcnow()
             # note: the date will represent the date we discovered this to be outdated
             # which is not all that logical, but we just need a unique filename (assuming old_age_days > 1).
-            logger.warning('Change in response for id=%s, archiving old result', nbr_id)
+            logger.warning('Change in response for id=%s, archiving old result', orgnr)
             file_util.rename_file(filename, d.strftime("-%Y-%m-%d-OUTDATED")) # move old one
             #return ret, cached
 
@@ -101,25 +101,26 @@ def barnehagefakta_get_json(nbr_id, old_age_days=5, cache_dir='data', keep_histo
 class NotFoundException(Exception):
     pass
 
-def barnehagefakta_get(nbr_id, *args, **kwargs):
-    """Returns dictionary with data for the given nbr_id. 
+def barnehagefakta_get(orgnr, *args, **kwargs):
+    """Returns dictionary with data for the given orgnr. 
     Additonal arguments are passed to barnehagefakta_get_json"""
-    j = barnehagefakta_get_json(nbr_id, *args, **kwargs)
+    j = barnehagefakta_get_json(orgnr, *args, **kwargs)
     if j is None:
         return {}
     elif j == '404':
-        raise NotFoundException('nbr_id={0} returned 404'.format(nbr_id))
+        raise NotFoundException('orgnr={0} returned 404'.format(orgnr))
     #return {}
     
     dct = json.loads(j)
     if logger.isEnabledFor(logging.DEBUG):
-        logger.debug('barnehagefakta_get(%s) -> %s', nbr_id, pretty_printer.pformat(dct))
+        logger.debug('barnehagefakta_get(%s) -> %s', orgnr, pretty_printer.pformat(dct))
     return dct
 
 if __name__ == '__main__':
-    import argparse_util
+    from utility_to_osm import argparse_util
+    
     parser = argparse_util.get_parser('Helper script for requesting (with local cache) and parsing json data from "Utdanningdsdirektoratet Nasjonalt barnehageregister (NBR)"')
-    parser.add_argument('nbr_id', nargs='+', help='Unique NBR-id(s) to download (e.g. 1015988).')
+    parser.add_argument('orgnr', nargs='+', help='Unique NBR-id(s) to download (e.g. 1015988).')
     parser.add_argument('--cache_dir', default='data',
                         help='Specify directory for cached .json files, defaults to data/')
     argparse_util.add_verbosity(parser, default=logging.DEBUG)
@@ -128,8 +129,8 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=args.loglevel)    
 
-    if args.nbr_id:             # list of ids given
-        for nbr_id in args.nbr_id:
-            print('Getting', nbr_id)
-            barnehagefakta_get(nbr_id, cache_dir=args.cache_dir)
+    if args.orgnr:             # list of ids given
+        for orgnr in args.orgnr:
+            print('Getting', orgnr)
+            barnehagefakta_get(orgnr, cache_dir=args.cache_dir)
 
