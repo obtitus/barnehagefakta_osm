@@ -55,8 +55,19 @@ if __name__ == '__main__':
                     reg = re.search('barnehagefakta_no_nbrId(\d+)', filename)
                     if reg:
                         nbrId = reg.group(1)
-                        orgnr = nsrId_to_orgnr[nbrId]
+                        try:
+                            orgnr = nsrId_to_orgnr[nbrId]
+                        except KeyError as e:
+                            content = file_util.read_file(filename)
+                            print('ERROR', repr(e), filename, content)
+                            if content == '404':
+                                os.remove(filename)
+                            continue
+                            
                         new_filename = filename.replace('barnehagefakta_no_nbrId%s' % nbrId,
                                                         'barnehagefakta_no_orgnr%s' % orgnr)
-                        #subprocess.run(['git', 'mv', filename, new_filename])
-                        os.rename(filename, new_filename)
+
+                        subprocess.run(['git', 'mv', filename, new_filename])
+                        # if the file is still there, probably not version controlled
+                        if os.path.exists(filename):
+                            os.rename(filename, new_filename)

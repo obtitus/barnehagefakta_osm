@@ -16,7 +16,7 @@ from utility_to_osm.kommunenummer import kommunenummer, to_kommunenr
 #from email_verification import mailbox_check_valid_cached
 from utility_to_osm import file_util
 from name_cleanup import name_cleanup
-from utility_to_osm.osmapis import osmapis
+from utility_to_osm import osmapis
 
 try:
     basestring

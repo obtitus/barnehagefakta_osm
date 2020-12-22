@@ -3,6 +3,6 @@ bs4
 lxml
 datadiff
 jinja2
-#htmldiff ?
+
 -e git+git://github.com/cygri/htmldiff.git#egg=htmldiff
 -e git+https://github.com/obtitus/py_import_utility_to_osm.git#egg=utility_to_osm
