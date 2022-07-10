@@ -24,7 +24,7 @@ from utility_to_osm.generate_html_history_chart import render_history_chart
 #     d = HtmlDiff()
 #     t = d.make_table(a.encode('utf8'), b.encode('utf8'))
 #     return t
-from htmldiff import htmldiff
+from utility_to_osm import htmldiff
 def my_htmldiff(a, b):
     try:
         d = htmldiff.HTMLMatcher(a.encode('utf8'), b.encode('utf8'),
@@ -101,6 +101,26 @@ def create_pre(dict1, dict_compare, mark_missing_key=True, ignore_keys=('ADDRESS
     tags += '</pre>'
     return tags
 
+def create_osm_url(osm_data):
+    if isinstance(osm_data, osmapis.Node):
+        osm_type_str = 'node'
+    elif isinstance(osm_data, osmapis.Way):
+        osm_type_str = 'way'
+    elif isinstance(osm_data, osmapis.Relation):
+        osm_type_str = 'relation'
+    else:
+        raise ValueError('osm_data type not recognized, %s, %s', type(osm_data), osm_data)
+
+    osm_id = osm_data.attribs['id']
+    full = ''
+    if osm_type_str != 'node':
+        full = '/full'
+    
+    osm_url_api = '"https://www.openstreetmap.org/api/0.6/%s/%s%s"' % (osm_type_str, osm_id, full)
+    osm_url = 'https://www.openstreetmap.org/%s/%s' % (osm_type_str, osm_id)
+
+    return osm_url, osm_url_api
+
 def create_rows(osm, data):
     table = list()
     count_osm = 0
@@ -128,7 +148,13 @@ def create_rows(osm, data):
             tags = 'Fant ingen openstreetmap objekt med no-barnehage:nsrid = %s' % nsrId
         elif len(osm_data) != 1:
             count_duplicate_osm += 1
-            tags = 'FEIL: Flere openstreetmap objekter funnet med no-barnehage:nsrid = %s' % nsrId
+            tags = 'FEIL: Flere openstreetmap objekter funnet med no-barnehage:nsrid = %s' % nsrId + '\n'
+            for item in osm_data:
+                href, _ = create_osm_url(item)
+                title = href.replace('https://www.', '')
+                text = title
+                tags += link_template.format(href=href, title=title, text=text) + '\n'
+                tags += create_pre(item.tags, kindergarten.tags, mark_missing_key=False)
         else:
             count_osm += 1
             assert len(osm_data) == 1
@@ -136,21 +162,7 @@ def create_rows(osm, data):
             osm_data_tags = osm_data.tags
             tags = create_pre(osm_data.tags, kindergarten.tags, mark_missing_key=False)
 
-            if isinstance(osm_data, osmapis.Node):
-                osm_type_str = 'node'
-            elif isinstance(osm_data, osmapis.Way):
-                osm_type_str = 'way'
-            elif isinstance(osm_data, osmapis.Relation):
-                osm_type_str = 'relation'
-            else:
-                raise ValueError('osm_data type not recognized, %s, %s', type(osm_data), osm_data)
-
-            osm_id = osm_data.attribs['id']            
-            full = ''
-            if osm_type_str is not 'node':
-                full = '/full'
-            osm_url_api = '"https://www.openstreetmap.org/api/0.6/%s/%s%s"' % (osm_type_str, osm_id, full)
-            osm_url = 'http://www.openstreetmap.org/%s/%s' % (osm_type_str, osm_id)
+            osm_url, osm_url_api = create_osm_url(osm_data)
             
             try:
                 lat, lon = get_lat_lon(osm, osm_data)
@@ -247,7 +259,7 @@ def main(osm, data_dir='data', root_output='',
     # counters for bottom of main table (what a mess)
     total_nbr = 0
     total_osm = 0
-    for kommune_nr in os.listdir(data_dir):
+    for kommune_nr in sorted(os.listdir(data_dir)):
         folder = os.path.join(data_dir, kommune_nr)
         if os.path.isdir(folder):
             try:
@@ -311,7 +323,13 @@ def main(osm, data_dir='data', root_output='',
                            .format(value=count_osm,
                                    min=0, max=len(table),
                                    per=per)
-                index_table.append((page_filename, u'Vis kommune', [kommune_nr, kommune_name, len(table), count_osm, progress]))
+
+                count_duplicate_osm_str = '0'
+                if count_duplicate_osm != 0:
+                    count_duplicate_osm_str = '<p style="background-color:red">%s</p>' % count_duplicate_osm
+                
+                index_table.append((page_filename, u'Vis kommune', [kommune_nr, kommune_name, len(table), count_osm,
+                                                                    count_duplicate_osm_str, progress]))
                 
                 page = template.render(kommune_name=kommune_name,
                                        kommune_nr=kommune_nr,

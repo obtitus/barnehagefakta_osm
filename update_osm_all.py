@@ -6,9 +6,10 @@ import time
 # non standard imports, fixme: merge generate_html.py
 from htmldiff import htmldiff
 def print_html_diff(a, b, addStylesheet=True):
-    d = htmldiff.HTMLMatcher(a.encode('utf8'), b.encode('utf8'),
+    d = htmldiff.HTMLMatcher(a,#.encode('utf8'),
+                             b,#.encode('utf8'),
                              accurate_mode=True)
-    html = d.htmlDiff(addStylesheet=addStylesheet).decode('utf8')
+    html = d.htmlDiff(addStylesheet=addStylesheet)#.decode('utf8')
     try:
         from IPython.core.display import display, HTML
         display(HTML(html))
@@ -22,6 +23,7 @@ kommune_nr2name, kommune_name2nr = kommunenummer(cache_dir='data')
 import update_osm
 import osmapis_nsrid as osmapis
 import update_osm
+import convert_nbrId_to_orgnr
 
 def print_osm_keys(osm_data_tags):
     print('OSM keys are')
@@ -38,8 +40,18 @@ def get_osm_data():
     print('returning %d osm objects' % len(osm.nsrids))#, osm.nsrids
     return osm
 
-def merge_kindergarten(osm, kindergarten):
+def merge_kindergarten(osm, kindergarten, orgnr_to_nsrId):
     nsrid = kindergarten.tags['no-barnehage:nsrid']
+
+    legacy_conversion = False
+    if nsrid in orgnr_to_nsrId: # new key for legacy conversion
+        orgnr = nsrid
+        legacy_nsrid = orgnr_to_nsrId[orgnr]
+        print('legacy conversion %s -> %s' % (orgnr, legacy_nsrid))
+        if legacy_nsrid in osm.nsrids:
+            nsrid = legacy_nsrid
+            legacy_conversion = True
+            
     if nsrid not in osm.nsrids:
         return True
     assert len(osm.nsrids[nsrid]) == 1
@@ -55,6 +67,8 @@ def merge_kindergarten(osm, kindergarten):
                 print('contact:email removed from nbr, removing from OSM')
                 #promt_user = False
                 update = True
+        elif key == 'ADDRESS':
+            update = True
             
         if update:
             print('Removing %s = %s\n' % (key, osm_data_tags[key]))
@@ -107,6 +121,15 @@ def merge_kindergarten(osm, kindergarten):
                     promt_user = False
                     update = True
                     print('Updating\n')
+                elif key == 'no-barnehage:nsrid' and legacy_conversion:
+                    promt_user = False
+                    update = True
+                    print('Updating\n')
+                elif key == 'name':
+                    promt_user = False
+                    update = False
+                    print('Skipping name for now\n')
+                
                 # elif key.startswith('contact:'):
                 #     print('skipping contact update %s' % key)
                 #     promt_user = False
@@ -130,7 +153,7 @@ def merge_kindergarten(osm, kindergarten):
         if promt_user:
             print_osm_keys(osm_data_tags)
             
-            user_input = raw_input('>>[y] ')
+            user_input = input('>>[y] ')
             if user_input.lower() in ('y', ''):
                 update = True
             elif user_input.lower() in ('s', 'n'):
@@ -149,6 +172,7 @@ def merge_kindergarten(osm, kindergarten):
     return True
 
 def compare_all(osm, data_dir):
+    nsrId_to_orgnr, orgnr_to_nsrId = convert_nbrId_to_orgnr.get_conversion(data_dir)
     for kommune_nr in os.listdir(data_dir):
         folder = os.path.join(data_dir, kommune_nr)
         if not(os.path.isdir(folder)): continue
@@ -156,7 +180,7 @@ def compare_all(osm, data_dir):
 
         for filename, data in update_osm.get_osm_files(folder):
             for kindergarten in data:
-                success = merge_kindergarten(osm, kindergarten)
+                success = merge_kindergarten(osm, kindergarten, orgnr_to_nsrId)
                 if success == False:
                     return osm
 
@@ -164,10 +188,11 @@ if __name__ == '__main__':
     data_dir = 'barnehagefakta_osm_data/data'
     output_filename = 'update_osm_all.osm'
     osm = get_osm_data()
-    try:
-        compare_all(osm, data_dir)
-    except Exception as e:
-        print(e)
+
+    #try:
+    compare_all(osm, data_dir)
+    #except Exception as e:
+    #    print(e)
 
     print('Saving conflated data as "%s", open this in JOSM, review and upload. Remember to include "data.udir.no" in source' % output_filename)
     osm.save(output_filename)

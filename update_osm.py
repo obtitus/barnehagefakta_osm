@@ -65,7 +65,7 @@ def find_outdated(root):
         for f in files:
             if f.endswith('OUTDATED.json'):
                 try:
-                    reg = re.search('nbrId(\d+)-(\d+-\d+-\d+)-OUTDATED.json', f)
+                    reg = re.search('orgnr(\d+)-(\d+-\d+-\d+)-OUTDATED.json', f)
                     nbr_id = reg.group(1)
                     date = datetime.strptime(reg.group(2), '%Y-%m-%d')
                     filename_updated = f.replace('-'+reg.group(2)+'-OUTDATED', '') # hack
@@ -123,13 +123,13 @@ def update_osm(original, modified, username=None, password=None, comment='', osm
     if password is None:
         password = mypasswords.osm_password
 
-    # Ensure we delete the ADDRESS tag (if any)
-    if 'ADDRESS' in modified.tags:
-        del modified.tags['ADDRESS']
+    # # Ensure we delete the ADDRESS tag (if any)
+    # if 'ADDRESS' in modified.tags:
+    #     del modified.tags['ADDRESS']
         
     osc = osmapis.OSC.from_diff(original, modified)
     print('DIFF: %s' % osc)
-    user_input = raw_input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete, "ow" to open website>>[y] ').lower()
+    user_input = input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete, "ow" to open website>>[y] ').lower()
     if user_input in ('y', ''):
         update = True
     elif user_input in ('s', 'n'):
@@ -216,7 +216,7 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
     # get keys that are in both updated and outdated
     s = set(osm_updated.tags.keys())
     s.intersection_update(osm_outdated.tags.keys())
-    ignored_capacity_change = False
+    ignored_capacity_change = True
     for key in s:
         # NBR has modified a value
         if osm_updated.tags[key] != osm_outdated.tags[key]:
@@ -372,7 +372,7 @@ if __name__ == '__main__':
             logger.error('OSM contains multiple nodes/ways/relations with the tag no-barnehage:nsrid=%s, please fix this.', nbr_id)
             for ix, e in enumerate(osm_elements):
                 print('DUPLICATE %d: %s\n"%s"' % (ix, e.tags, e))
-            exit(1)
+            #exit(1)
 
     # Summary
     resolved = N_404 + N_no_relevant_tags + N_not_added + N_resolved

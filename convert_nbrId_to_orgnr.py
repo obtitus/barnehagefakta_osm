@@ -7,9 +7,23 @@ from glob import glob
 
 from utility_to_osm import file_util
 
+def get_conversion(data_dir='data'):
+    nsrId_to_orgnr_filename = os.path.join(data_dir, 'nsrId_to_orgnr.json')
+    content = file_util.read_file(nsrId_to_orgnr_filename)
+    nsrId_to_orgnr = json.loads(content)
+    for key, item in nsrId_to_orgnr.items():
+        if item in nsrId_to_orgnr:
+            raise ValueError('Crap, nsrId = %s is valid orgnr' % item)
+
+    orgnr_to_nsrId = dict()
+    for key, item in nsrId_to_orgnr.items():
+        orgnr_to_nsrId[item] = key
+    
+    return nsrId_to_orgnr, orgnr_to_nsrId
+
 if __name__ == '__main__':
     data_dir = 'data' #'barnehagefakta_osm_data/data'
-    nsrId_to_orgnr_filename = 'nsrId_to_orgnr.json'
+    nsrId_to_orgnr_filename = 'data/nsrId_to_orgnr.json'
 
     if False:
         # Done once, on a old dump of the database, to get mapping from nsrId to orgnr
@@ -40,11 +54,10 @@ if __name__ == '__main__':
         with open(nsrId_to_orgnr_filename, 'w') as f:
             json.dump(nsrId_to_orgnr, f)
 
-    content = file_util.read_file(nsrId_to_orgnr_filename)
-    nsrId_to_orgnr = json.loads(content)
+    nsrId_to_orgnr = get_nsrId_to_orgnr()
     
-    if True:
-        # Rename files
+    if False:
+        # Done once, on newer dump of database, Rename files
         for kommune_nr in os.listdir(data_dir):
             folder = os.path.join(data_dir, kommune_nr)
             if os.path.isdir(folder):

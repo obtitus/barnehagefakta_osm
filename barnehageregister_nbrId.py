@@ -21,9 +21,9 @@ except NameError:               # python3
     basestring = str
 
 def get(kommune_id, page_nr=1, old_age_days=30, cache_dir='data'):
-    url = 'https://nbr.udir.no/sok/sokresultat?FritekstSok=&NedlagteEnheter=false&AktiveEnheter=true&AktiveEnheter=false&Eiere=false'
-    url += '&Kommune.Id={0:s}'.format(kommune_id)
-    url += '&Sidenummer={0:d}'.format(page_nr)
+    url = 'https://nbr.udir.no/api/sok/sok?fritekstSoek=&inkluderAktive=true&inkluderAndreTyperEnheter=false&inkluderEiere=false&inkluderEnheter=true&inkluderNedlagte=false'
+    url += '&kommunenr={0:s}'.format(kommune_id)
+    url += '&side={0:d}'.format(page_nr)
 
     filename = os.path.join(cache_dir, kommune_id, 'nbr_udir_no_page{0}.html'.format(page_nr))
     return request_session.get_cached(url, filename, old_age_days=old_age_days)
@@ -133,31 +133,43 @@ def parse(content):
     ignore_data = []
     rename_tags = {'Org.Nr': 'orgnr'}
 
-    soup = BeautifulSoup(content, 'lxml')
-    table = find_search_table(soup)
+    dct = json.loads(content)
+    for enhet in dct['enheter']:
+        enhet_info = enhet['enhetLink']
+        eier_info  = enhet['eierLink']
+        new_row = dict()
+        new_row['name'] = enhet_info['text']
+        new_row['nbrId'] = enhet_info['id'] # ?
+        new_row['Eier'] = eier_info.get('text', '')
+        new_row['Eier_orgNr'] = eier_info['id']
+        new_row['orgnr'] = enhet_info['id'] # ?
+        yield new_row
+
+    # soup = BeautifulSoup(content, 'lxml')
+    # table = find_search_table(soup)
     
-    for raw_data in get_raw(table):
-        if len(raw_data) != len(expected_data):
-            logger.error('length %s != %s, got %s' % (len(raw_data), len(expected_data), raw_data.keys()))
-            continue
+    # for raw_data in get_raw(table):
+    #     if len(raw_data) != len(expected_data):
+    #         logger.error('length %s != %s, got %s' % (len(raw_data), len(expected_data), raw_data.keys()))
+    #         continue
         
-        #assert len(raw_data) == len(expected_data), 'length %s != %s, got %s' % (len(raw_data), len(expected_data), raw_data.keys())
-        #assert raw_data['Type'] == 'Bedrift' # seems to be true, so why not check for it
-        for key in expected_data:
-            if expected_data[key] == basestring:
-                assert isinstance(raw_data[key], basestring)
-                raw_data[key] = raw_data[key].strip()
-            else:
-                raw_data[key] = expected_data[key](raw_data[key])
+    #     #assert len(raw_data) == len(expected_data), 'length %s != %s, got %s' % (len(raw_data), len(expected_data), raw_data.keys())
+    #     #assert raw_data['Type'] == 'Bedrift' # seems to be true, so why not check for it
+    #     for key in expected_data:
+    #         if expected_data[key] == basestring:
+    #             assert isinstance(raw_data[key], basestring)
+    #             raw_data[key] = raw_data[key].strip()
+    #         else:
+    #             raw_data[key] = expected_data[key](raw_data[key])
 
-        for key in ignore_data:
-            del raw_data[key]
+    #     for key in ignore_data:
+    #         del raw_data[key]
 
-        for key, key_new in rename_tags.items():
-            raw_data[key_new] = raw_data[key]
-            del raw_data[key]
+    #     for key, key_new in rename_tags.items():
+    #         raw_data[key_new] = raw_data[key]
+    #         del raw_data[key]
         
-        yield raw_data
+    #     yield raw_data
 
 def all_pages(kommune_id):
     for page_nr in range(1, 1024): # max pages (Oslo currently has 832)
