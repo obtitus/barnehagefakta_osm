@@ -21,7 +21,7 @@ except ImportError:
 #
 import utility_to_osm.gentle_requests as gentle_requests
 import utility_to_osm.file_util as file_util
-    
+
 # This project
 request_session = gentle_requests.GentleRequests()
 import osmapis_nsrid as osmapis
@@ -35,7 +35,7 @@ from barnehagefakta_osm import create_osmtags
 
 def compare_capacity(value1_str, value2_str):
     '''
-    There is an insane number of small updates to the capacity key, 
+    There is an insane number of small updates to the capacity key,
     this ensures we ignore any changes less than +- 10
     '''
     try:
@@ -54,7 +54,7 @@ def get_osm_files(folder):
             logger.info('.osm file %s', filename)
             with open(filename) as f:
                 data = osmapis.OSMnsrid.from_xml(f.read())
-            
+
             yield filename, data
 
 def find_outdated(root):
@@ -86,7 +86,7 @@ def find_all_nsrid_osm_elements(osm, nsrid=None):
         if 'no-barnehage:nsrid' in elem.tags:
             if nsrid is not None and elem.tags['no-barnehage:nsrid'] != nsrid:
                 continue
-            
+
             logger.debug('found tags = "%s"\nattribs="%s"', elem.tags, elem.attribs)
             yield elem
 
@@ -101,11 +101,11 @@ def overpass_nsrid(nsrid='*',
     filename = filename.replace(']', '')
     filename = filename.replace('=', '')
     logger.debug('cached overpass filename "%s"', filename)
-    
+
     cached, outdated = file_util.cached_file(filename, old_age_days=1)
     if cached is not None and not(outdated):
         return cached
-    
+
     r = request_session.get('http://www.overpass-api.de/api/xapi_meta?*[no-barnehage:nsrid=%s]%s' % (nsrid, bbox_scandinavia))
     ret = r.content
 
@@ -115,7 +115,7 @@ def overpass_nsrid(nsrid='*',
     else:
         logger.error('Invalid status code %s', r.status_code)
         return None
-    
+
 def update_osm(original, modified, username=None, password=None, comment='', osm_element=None):
     #'''osmapis changeset example'''
     if username is None:
@@ -126,7 +126,7 @@ def update_osm(original, modified, username=None, password=None, comment='', osm
     # # Ensure we delete the ADDRESS tag (if any)
     # if 'ADDRESS' in modified.tags:
     #     del modified.tags['ADDRESS']
-        
+
     osc = osmapis.OSC.from_diff(original, modified)
     print('DIFF: %s' % osc)
     user_input = input('Please confirm, enter to continue, "s" or "n" to skip, "d" to delete, "ow" to open website>>[y] ').lower()
@@ -150,7 +150,7 @@ def update_osm(original, modified, username=None, password=None, comment='', osm
         print('unkown user_input, breaking.', repr(user_input))
         exit(1)
 
-    
+
     api = osmapis.API(username=username, password=password,
                       changeset_tags=dict(source="Nasjonalt barnehageregister",
                                           created_by="barnehagefakta_osm.py"))
@@ -163,13 +163,13 @@ def update_osm(original, modified, username=None, password=None, comment='', osm
 
 def resolve_conflict(osm_element, osm_outdated, osm_updated):
     keys_to_ignore = ('ADDRESS', )
-    
-    logger.debug('resolve_conflict:osm: %s', osm_element)    
+
+    logger.debug('resolve_conflict:osm: %s', osm_element)
     logger.debug('resolve_conflict:outdated: %s', osm_outdated)
     logger.debug('resolve_conflict:updated: %s', osm_updated)
-    
+
     osm_element_tags_original = dict(osm_element.tags) # keep a copy
-    
+
     if osm_outdated.attribs['lat'] != osm_updated.attribs['lat'] or\
        osm_outdated.attribs['lon'] != osm_updated.attribs['lon']:
         logger.warning('Lat/lon has changed, it is advisable to check if this is an improvement in the NBR data or if the kindergarden actually has moved')
@@ -238,7 +238,7 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
                         logger.info('Ignoring small capacity change %s=%s to %s', key, osm_outdated.tags[key], osm_updated.tags[key])
                         ignored_capacity_change = True # This moves: osm_element.tags[key] = osm_updated.tags[key], to only happen if we are actually doing an update
                         continue
-                        
+
                     logger.info('Modifying %s="%s" to "%s"', key, osm_outdated.tags[key], osm_updated.tags[key])
                     osm_element.tags[key] = osm_updated.tags[key]
             elif key in keys_to_ignore:
@@ -251,9 +251,9 @@ def resolve_conflict(osm_element, osm_outdated, osm_updated):
                 return False
 
     # fixme: Re-write, do not return False all over the place?
-    
+
     if osm_element_tags_original != osm_element.tags:
-        if ignored_capacity_change:
+        if ignored_capacity_change and 'capacity' in osm_updated.tags:
             osm_element.tags['capacity'] = osm_updated.tags['capacity']
         return 'update'
     else:
@@ -274,15 +274,15 @@ if __name__ == '__main__':
 
     #logging.basicConfig(level=args.loglevel)
     # logger_adapter_dict = dict(nbr_id=None)
-    # main_logger = logging.LoggerAdapter(main_logger, logger_adapter_dict)    
-    
+    # main_logger = logging.LoggerAdapter(main_logger, logger_adapter_dict)
+
     main_logger = logging.getLogger('barnehagefakta')
     main_logger.setLevel(logging.DEBUG)
     # create console handler with a custom log level
     ch = logging.StreamHandler()
     ch.setLevel(args.loglevel)
     main_logger.addHandler(ch)
-    
+
     # create file handler which logs even info messages
     fh = logging.FileHandler(args.log_filename)
     fh.setLevel(logging.DEBUG)
@@ -326,9 +326,9 @@ if __name__ == '__main__':
             else:
                 logger.error('ERROR: nbrid = %s is now 404. FIXME: support this, previous = %s', nbr_id, outdated)
                 # Note: do not delete before we have a good fix for this!
-            
+
             continue
-        
+
         osm_outdated, _ = create_osmtags(outdated, cache_dir=args.data_dir)
         osm_updated, _ = create_osmtags(updated, cache_dir=args.data_dir)
 
@@ -337,7 +337,7 @@ if __name__ == '__main__':
             logger.info('nbrid = %s no relevant tags changed, removing', nbr_id) # fixme: check for lat/lon changes...
             if datadiff is not None:
                 logger.debug("%s", datadiff.diff(outdated, updated))
-                
+
             os.remove(filename_outdated)
             continue
 
@@ -346,7 +346,7 @@ if __name__ == '__main__':
             logger.info('nbrid = %s has not been added to osm, removing the OUTDATED file', nbr_id)
             if datadiff is not None:
                 logger.info("%s", datadiff.diff(outdated, updated))
-            
+
             os.remove(filename_outdated)
         elif len(osm_elements) == 1:
             osm_element = osm_elements[0]
